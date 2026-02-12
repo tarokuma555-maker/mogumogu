@@ -97,6 +97,12 @@ html {
   100% { transform: scale(1.15); }
 }
 
+/* ====== マーキーアニメーション（音楽バー） ====== */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* ====== コンテンツフェードイン ====== */
 .fade-in {
   animation: fadeInUp 0.3s ease-out both;

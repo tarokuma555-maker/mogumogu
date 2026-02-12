@@ -1502,26 +1502,37 @@ function ShortsAd({ ad, cardHeight }) {
   return (
     <div style={{
       height: cardHeight, minHeight: 500,
-      background: `linear-gradient(160deg, ${ad.color}, ${ad.color}aa)`,
+      background: `linear-gradient(160deg, ${ad.color}ee, ${ad.color}88)`,
       position: 'relative', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       scrollSnapAlign: 'start', flexShrink: 0, overflow: 'hidden',
     }}>
+      {/* 背景装飾 */}
+      <div style={{
+        position: 'absolute', top: -60, right: -60, width: 200, height: 200,
+        borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: -40, left: -40, width: 160, height: 160,
+        borderRadius: '50%', background: 'rgba(255,255,255,0.04)',
+      }} />
       <span style={{
-        position: 'absolute', top: 60, left: 16,
-        background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+        position: 'absolute', top: 52, left: 16,
+        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
         padding: '4px 12px', borderRadius: 8,
-        color: '#fff', fontSize: FONT.xs, fontWeight: 700,
+        color: 'rgba(255,255,255,0.8)', fontSize: FONT.xs, fontWeight: 700,
+        letterSpacing: 1,
       }}>PR</span>
       <button onClick={() => setDismissed(true)} style={{
-        position: 'absolute', top: 56, right: 16, background: 'rgba(255,255,255,0.15)',
+        position: 'absolute', top: 48, right: 16, background: 'rgba(255,255,255,0.1)',
         backdropFilter: 'blur(8px)',
-        border: 'none', borderRadius: '50%', width: 36, height: 36,
-        color: 'rgba(255,255,255,0.8)', fontSize: FONT.lg, cursor: 'pointer',
+        border: 'none', borderRadius: '50%', width: 40, height: 40,
+        color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.2s',
       }}>✕</button>
-      <div style={{ fontSize: 72, marginBottom: SPACE.xl }}>{ad.emoji}</div>
-      <div style={{ color: '#fff', fontWeight: 900, fontSize: 24, marginBottom: 8, textAlign: 'center' }}>
+      <div style={{ fontSize: 72, marginBottom: SPACE.xl, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>{ad.emoji}</div>
+      <div style={{ color: '#fff', fontWeight: 900, fontSize: 26, marginBottom: 10, textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
         {ad.brand}
       </div>
       <div style={{
@@ -1529,36 +1540,40 @@ function ShortsAd({ ad, cardHeight }) {
         maxWidth: 280, lineHeight: 1.7, marginBottom: SPACE.md,
       }}>{ad.desc}</div>
       <div style={{
-        color: 'rgba(255,255,255,0.6)', fontSize: FONT.sm, marginBottom: SPACE.xxl, textAlign: 'center',
+        color: 'rgba(255,255,255,0.55)', fontSize: FONT.sm, marginBottom: SPACE.xxl, textAlign: 'center',
       }}>{ad.tagline}</div>
       <button className="tap-scale" style={{
-        background: 'rgba(255,255,255,0.95)', color: ad.color, border: 'none',
-        borderRadius: 50, padding: '16px 48px', fontWeight: 900, fontSize: FONT.lg,
+        background: '#fff', color: ad.color, border: 'none',
+        borderRadius: 50, padding: '16px 52px', fontWeight: 900, fontSize: FONT.lg,
         cursor: 'pointer', fontFamily: 'inherit',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+        transition: 'transform 0.2s ease-out, box-shadow 0.2s',
       }}>{ad.cta}</button>
     </div>
   );
 }
 
-// ---------- TikTok風 ShortsCard ----------
-function ShortsActionButton({ icon, label, onClick }) {
+// ---------- YouTube Shorts 風フルスクリーンUI ----------
+function ShortsActionButton({ icon, label, onClick, active }) {
   return (
     <button className="tap-light" onClick={onClick} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
       background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+      transition: 'transform 0.15s ease-out',
     }}>
       <div style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(4px)',
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 22,
+        fontSize: 24, transition: 'transform 0.2s ease-out',
+        transform: active ? 'scale(1.15)' : 'scale(1)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       }}>
         {icon}
       </div>
       <span style={{
-        color: '#fff', fontSize: 10, fontWeight: 700,
-        textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+        color: '#fff', fontSize: 11, fontWeight: 700,
+        textShadow: '0 1px 6px rgba(0,0,0,0.6)',
       }}>{label}</span>
     </button>
   );
@@ -1566,11 +1581,21 @@ function ShortsActionButton({ icon, label, onClick }) {
 
 function ShortsCard({ item, cardHeight, isVisible, isActive }) {
   const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [muted, setMuted] = useState(true);
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const prevActiveRef = useRef(false);
 
   const videoId = item.youtube_id;
+
+  // isActive が変わったら iframeLoaded をリセット
+  useEffect(() => {
+    if (isActive && !prevActiveRef.current) {
+      setIframeLoaded(false);
+    }
+    prevActiveRef.current = isActive;
+  }, [isActive]);
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1585,8 +1610,13 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
 
   // YouTube embed URL: アクティブカードのみ autoplay=1
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=${isActive ? 1 : 0}&mute=${muted ? 1 : 0}&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&showinfo=0&iv_load_policy=3&fs=0`
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=${isActive ? 1 : 0}&mute=${muted ? 1 : 0}&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&showinfo=0&iv_load_policy=3&fs=0&enablejsapi=1`
     : null;
+
+  const stageLabel = item.stage || item.baby_month_stage;
+  const stageEmoji = (stageLabel === '初期' || stageLabel === 'ゴックン期') ? '🍼'
+    : (stageLabel === '中期' || stageLabel === 'モグモグ期') ? '🥄'
+    : (stageLabel === '後期' || stageLabel === 'カミカミ期') ? '🦷' : '🍽️';
 
   return (
     <div style={{
@@ -1594,62 +1624,76 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
       minHeight: 500,
       background: '#000',
       position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
       overflow: 'hidden',
       scrollSnapAlign: 'start',
       flexShrink: 0,
     }}>
-      {/* 動画エリア（全画面） */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-        {/* グラデーション背景（iframe読み込み前 or 動画なし） */}
+      {/* === 動画レイヤー（全画面） === */}
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {/* グラデーション背景（iframe未読み込み or 動画なし時） */}
         <div style={{
           position: 'absolute', inset: 0,
           background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-          zIndex: 1,
-          opacity: (videoId && iframeLoaded) ? 0 : 1,
-          transition: 'opacity 0.5s',
+          opacity: (videoId && iframeLoaded && isActive) ? 0 : 1,
+          transition: 'opacity 0.6s ease-out',
           pointerEvents: 'none',
-        }} />
+        }}>
+          {/* 装飾パーティクル */}
+          <div style={{ position: 'absolute', top: '20%', left: '15%', width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+          <div style={{ position: 'absolute', top: '35%', right: '20%', width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+          <div style={{ position: 'absolute', top: '55%', left: '30%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+        </div>
 
-        {/* YouTube iframe — アクティブまたは隣接カードのみ描画 */}
+        {/* YouTube iframe */}
         {videoId && isActive && (
           <iframe
-            key={`${videoId}-${isActive}-${muted}`}
+            key={`${videoId}-${muted}`}
             src={embedUrl}
             title={item.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             onLoad={() => setIframeLoaded(true)}
             style={{
-              position: 'absolute', inset: 0, zIndex: 2,
+              position: 'absolute', inset: 0,
               width: '100%', height: '100%', border: 'none',
-              pointerEvents: 'none',
+              zIndex: 1, pointerEvents: 'none',
             }}
           />
         )}
 
-        {/* 読み込み中スピナー */}
+        {/* ローディング（スケルトン風パルス） */}
         {videoId && isActive && !iframeLoaded && (
           <div style={{
-            position: 'absolute', inset: 0, zIndex: 3,
+            position: 'absolute', inset: 0, zIndex: 2,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: 40, animation: 'loadingPulse 1.5s infinite', color: '#fff' }}>▶</div>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              animation: 'loadingPulse 1.5s infinite',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+            }}>
+              <span style={{ fontSize: 28, color: '#fff', marginLeft: 3 }}>▶</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* ミュートトグル（左上） */}
-      {videoId && isActive && (
+      {/* === UIオーバーレイ === */}
+
+      {/* ミュートボタン */}
+      {videoId && isActive && iframeLoaded && (
         <button
           onClick={() => setMuted(m => !m)}
           style={{
-            position: 'absolute', top: 56, right: 16, zIndex: 20,
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
-            border: 'none', cursor: 'pointer',
+            position: 'absolute', top: 52, right: 16, zIndex: 30,
+            width: 38, height: 38, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 16, color: '#fff',
+            transition: 'transform 0.2s ease-out, background 0.2s',
           }}
         >
           {muted ? '🔇' : '🔊'}
@@ -1657,30 +1701,48 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
       )}
 
       {/* ステージバッジ */}
-      {(item.stage || item.baby_month_stage) && (
+      {stageLabel && (
         <div style={{
-          position: 'absolute', top: 56, left: 16, zIndex: 20,
-          background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
+          position: 'absolute', top: 54, left: 16, zIndex: 30,
+          background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(10px)',
           borderRadius: 20, padding: '5px 14px',
+          border: '1px solid rgba(255,255,255,0.08)',
           fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}>
-          {(item.stage || '') === '初期' || item.baby_month_stage === 'ゴックン期' ? '🍼'
-            : (item.stage || '') === '中期' || item.baby_month_stage === 'モグモグ期' ? '🥄'
-            : (item.stage || '') === '後期' || item.baby_month_stage === 'カミカミ期' ? '🦷'
-            : '🍽️'} {item.stage || item.baby_month_stage}
+          {stageEmoji} {stageLabel}
         </div>
       )}
 
-      {/* 右サイド TikTok風アクションバー */}
+      {/* 右サイド アクションバー */}
       <div style={{
-        position: 'absolute', right: 10, bottom: '28%',
-        display: 'flex', flexDirection: 'column', gap: 16,
-        alignItems: 'center', zIndex: 10,
+        position: 'absolute', right: 8, bottom: '24%',
+        display: 'flex', flexDirection: 'column', gap: 14,
+        alignItems: 'center', zIndex: 20,
       }}>
+        {/* チャンネルアバター */}
+        <div style={{ marginBottom: 6, position: 'relative' }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)', border: '2px solid #fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+          }}>
+            {item.avatar || (item.channel || item.channel_name || '?')[0]}
+          </div>
+          <div style={{
+            position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+            width: 20, height: 20, borderRadius: '50%',
+            background: '#FF4757', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, color: '#fff', fontWeight: 900,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }}>+</div>
+        </div>
         <ShortsActionButton
           icon={liked ? '❤️' : '🤍'}
           label={formatCount(liked ? (item.likes || item.likes_count || 0) + 1 : (item.likes || item.likes_count || 0))}
           onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
+          active={liked}
         />
         <ShortsActionButton
           icon="💬"
@@ -1693,36 +1755,33 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           onClick={(e) => e.stopPropagation()}
         />
         <ShortsActionButton
-          icon="🔖"
-          label="保存"
-          onClick={(e) => e.stopPropagation()}
+          icon={saved ? '🔖' : '📑'}
+          label={saved ? '保存済' : '保存'}
+          onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
+          active={saved}
         />
       </div>
 
       {/* 下部情報オーバーレイ */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
-        background: 'linear-gradient(transparent, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.75))',
-        padding: `60px ${SPACE.lg}px ${SPACE.xl}px`,
+        position: 'absolute', bottom: 0, left: 0, right: 60, zIndex: 15,
+        background: 'linear-gradient(transparent, rgba(0,0,0,0.45) 25%, rgba(0,0,0,0.7))',
+        padding: `80px ${SPACE.lg}px ${SPACE.xl}px`,
       }}>
-        {/* チャンネル行 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, flexShrink: 0,
+        {/* チャンネル名 + フォロー */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{
+            color: '#fff', fontWeight: 800, fontSize: FONT.base,
+            textShadow: '0 1px 6px rgba(0,0,0,0.4)',
           }}>
-            {item.avatar || (item.channel || item.channel_name || '?')[0]}
-          </div>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: FONT.base }}>
-            {item.channel || item.channel_name || ''}
+            @{(item.channel || item.channel_name || '').replace(/\s/g, '')}
           </span>
           <button style={{
-            background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
-            border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20,
-            padding: '4px 16px', color: '#fff', fontSize: FONT.sm,
+            background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6,
+            padding: '3px 12px', color: '#fff', fontSize: FONT.xs,
             fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'background 0.2s',
           }}>
             フォロー
           </button>
@@ -1734,44 +1793,66 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           marginBottom: 6,
           overflow: 'hidden', display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          textShadow: '0 1px 6px rgba(0,0,0,0.4)',
         }}>
           {item.title}
         </div>
 
-        {/* 説明文 */}
+        {/* 説明文（タップで展開） */}
         {item.description && (
           <div
             onClick={(e) => { e.stopPropagation(); setDescExpanded(!descExpanded); }}
             style={{
-              color: 'rgba(255,255,255,0.85)', fontSize: FONT.sm, lineHeight: 1.5,
+              color: 'rgba(255,255,255,0.8)', fontSize: FONT.sm, lineHeight: 1.5,
               marginBottom: 8, cursor: 'pointer',
               overflow: descExpanded ? 'visible' : 'hidden',
               display: descExpanded ? 'block' : '-webkit-box',
               WebkitLineClamp: descExpanded ? undefined : 1,
               WebkitBoxOrient: 'vertical',
+              transition: 'all 0.2s',
             }}
           >
             {item.description}
-            {!descExpanded && <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>...もっと見る</span>}
+            {!descExpanded && <span style={{ color: 'rgba(255,255,255,0.45)', marginLeft: 4, fontSize: FONT.xs }}>もっと見る</span>}
           </div>
         )}
 
-        {/* ハッシュタグ */}
+        {/* ハッシュタグ（横スクロール） */}
         {(item.hashtags || item.tags)?.length > 0 && (
           <div style={{
-            display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4,
+            display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2,
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none', scrollbarWidth: 'none',
           }}>
             {(item.hashtags || item.tags).map((tag) => (
               <span key={tag} style={{
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: FONT.sm, fontWeight: 600,
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: FONT.sm, fontWeight: 600, whiteSpace: 'nowrap',
+                textShadow: '0 1px 4px rgba(0,0,0,0.3)',
               }}>
                 {tag.startsWith('#') ? tag : `#${tag}`}
               </span>
             ))}
           </div>
         )}
+
+        {/* 音楽バー（YouTube Shorts風） */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
+          color: 'rgba(255,255,255,0.6)', fontSize: FONT.xs,
+        }}>
+          <span style={{ fontSize: 14 }}>♫</span>
+          <div style={{
+            flex: 1, overflow: 'hidden', whiteSpace: 'nowrap',
+          }}>
+            <span style={{
+              display: 'inline-block',
+              animation: isActive ? 'marquee 8s linear infinite' : 'none',
+            }}>
+              {item.channel || item.channel_name || 'MoguMogu'} - オリジナル音源
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1812,12 +1893,12 @@ function HomeTab() {
     fetchVideos();
   }, []);
 
-  // スクロール監視
+  // スクロール監視（ease-outで滑らかに）
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     setIsScrolling(true);
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 150);
+    scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 200);
 
     const scrollTop = containerRef.current.scrollTop;
     const idx = Math.round(scrollTop / cardHeight);
@@ -1847,39 +1928,40 @@ function HomeTab() {
       {/* トップバーオーバーレイ */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100,
-        background: isScrolling
-          ? 'linear-gradient(to bottom, rgba(0,0,0,0.15), transparent)'
-          : 'linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)',
-        padding: '12px 16px 20px',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)',
+        padding: '10px 16px 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        transition: 'background 0.3s',
+        opacity: isScrolling ? 0.4 : 1,
+        transition: 'opacity 0.3s ease-out',
         pointerEvents: 'none',
       }}>
         {/* 左: ロゴ */}
         <div style={{ pointerEvents: 'auto' }}>
           <span style={{
-            color: '#fff', fontWeight: 900, fontSize: FONT.lg,
-            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            color: '#fff', fontWeight: 900, fontSize: 18,
+            textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            letterSpacing: -0.5,
           }}>
             MoguMogu
           </span>
         </div>
 
         {/* 中央: タブ切替 */}
-        <div style={{ display: 'flex', gap: 20, pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', gap: 24, pointerEvents: 'auto' }}>
           {[{ key: 'recommend', label: 'おすすめ' }, { key: 'following', label: 'フォロー中' }].map(tab => (
             <button
               key={tab.key}
               onClick={() => setFeedTab(tab.key)}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#fff', fontSize: FONT.base,
-                fontWeight: feedTab === tab.key ? 900 : 500,
-                opacity: feedTab === tab.key ? 1 : 0.6,
-                fontFamily: 'inherit', padding: '2px 0',
-                borderBottom: feedTab === tab.key ? '2px solid #fff' : '2px solid transparent',
-                textShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                transition: 'all 0.2s',
+                color: '#fff', fontSize: 15,
+                fontWeight: feedTab === tab.key ? 800 : 400,
+                opacity: feedTab === tab.key ? 1 : 0.55,
+                fontFamily: 'inherit', padding: '4px 0',
+                borderBottom: feedTab === tab.key ? '2.5px solid #fff' : '2.5px solid transparent',
+                textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+                transition: 'all 0.25s ease-out',
+                letterSpacing: 0.3,
               }}
             >
               {tab.label}
@@ -1887,33 +1969,16 @@ function HomeTab() {
           ))}
         </div>
 
-        {/* 右: 通知アイコン */}
+        {/* 右: 検索 */}
         <div style={{ pointerEvents: 'auto' }}>
           <button style={{
             background: 'none', border: 'none', cursor: 'pointer',
             fontSize: 20, padding: 4, color: '#fff',
-            textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            textShadow: '0 1px 6px rgba(0,0,0,0.4)',
           }}>
-            🔔
+            🔍
           </button>
         </div>
-      </div>
-
-      {/* スクロールインジケーター（右端） */}
-      <div style={{
-        position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
-        zIndex: 90, display: 'flex', flexDirection: 'column', gap: 4,
-        pointerEvents: 'none',
-      }}>
-        {displayItems.slice(0, 12).map((_, i) => (
-          <div key={i} style={{
-            width: 3,
-            height: i === currentIndex ? 14 : 3,
-            borderRadius: 2,
-            background: i === currentIndex ? '#fff' : 'rgba(255,255,255,0.3)',
-            transition: 'all 0.3s',
-          }} />
-        ))}
       </div>
 
       {/* メインスクロールコンテナ */}
@@ -1925,6 +1990,7 @@ function HomeTab() {
           overflowX: 'hidden',
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
         }}
       >
         {displayItems.map((entry, i) => (
