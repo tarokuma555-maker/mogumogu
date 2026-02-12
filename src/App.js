@@ -909,6 +909,7 @@ const ALLERGENS = [
 const DEMO_SHORTS = [
   {
     id: '1',
+    youtube_id: 'bE7lGMSPbqo',
     title: '10倍がゆの作り方 \u{1F35A}',
     description: '離乳食デビューの基本中の基本',
     channel: 'りにゅう食ラボ',
@@ -922,6 +923,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '2',
+    youtube_id: 'GkXjQ3K5dKk',
     title: 'にんじんペーストが30秒で完成 \u{1F955}',
     description: '電子レンジだけで超簡単！',
     channel: 'ママの時短キッチン',
@@ -935,6 +937,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '3',
+    youtube_id: 'Q3YBM5EaUVs',
     title: 'かぼちゃポタージュ \u{1F383}',
     description: 'クリーミーで甘い！赤ちゃん大好き',
     channel: 'ベビーフード研究所',
@@ -948,6 +951,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '4',
+    youtube_id: 'Lgsp3Hd5gCE',
     title: 'しらすの塩抜き完全マニュアル \u{1F41F}',
     description: 'たんぱく質デビューならコレ！',
     channel: 'りにゅう食ラボ',
@@ -961,6 +965,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '5',
+    youtube_id: 'DSQyddfKx_o',
     title: 'ブロッコリー×おかゆ 栄養MAX \u{1F966}',
     description: '野菜嫌いの赤ちゃんも完食！',
     channel: 'ママの時短キッチン',
@@ -974,6 +979,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '6',
+    youtube_id: 'WjN05IyHdJE',
     title: '手づかみ食べデビュー3選 \u270B',
     description: '9ヶ月から始める手づかみメニュー',
     channel: 'ベビーフード研究所',
@@ -987,6 +993,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '7',
+    youtube_id: 'i1Y_11OxECo',
     title: '1週間分の冷凍ストック術 \u{1F9CA}',
     description: '日曜に30分でまとめて作り置き！',
     channel: 'ママの時短キッチン',
@@ -1000,6 +1007,7 @@ const DEMO_SHORTS = [
   },
   {
     id: '8',
+    youtube_id: '7U5vMf0NPHE',
     title: 'ふわふわ豆腐ハンバーグ \u{1F373}',
     description: '完食率No.1の鉄板レシピ',
     channel: 'りにゅう食ラボ',
@@ -1556,9 +1564,13 @@ function ShortsActionButton({ icon, label, onClick }) {
   );
 }
 
-function ShortsCard({ item, cardHeight, isVisible }) {
+function ShortsCard({ item, cardHeight, isVisible, isActive }) {
   const [liked, setLiked] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  const videoId = item.youtube_id;
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1566,23 +1578,21 @@ function ShortsCard({ item, cardHeight, isVisible }) {
     return String(n);
   };
 
-  const handlePlay = () => {
-    const q = item.searchQuery || item.title || '離乳食 レシピ';
-    window.open(
-      `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}+%23shorts`,
-      '_blank'
-    );
-  };
-
+  // 画面外のカードは空divでパフォーマンス最適化
   if (!isVisible) {
     return <div style={{ height: cardHeight, scrollSnapAlign: 'start', flexShrink: 0, background: '#000' }} />;
   }
+
+  // YouTube embed URL: アクティブカードのみ autoplay=1
+  const embedUrl = videoId
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=${isActive ? 1 : 0}&mute=${muted ? 1 : 0}&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&showinfo=0&iv_load_policy=3&fs=0`
+    : null;
 
   return (
     <div style={{
       height: cardHeight,
       minHeight: 500,
-      background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+      background: '#000',
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
@@ -1590,47 +1600,86 @@ function ShortsCard({ item, cardHeight, isVisible }) {
       scrollSnapAlign: 'start',
       flexShrink: 0,
     }}>
-      {/* メインビジュアルエリア（60-70%） — 再生ボタン */}
-      <div
-        onClick={handlePlay}
-        style={{
-          flex: 7, position: 'relative', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {/* 再生ボタン */}
+      {/* 動画エリア（全画面） */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        {/* グラデーション背景（iframe読み込み前 or 動画なし） */}
         <div style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'transform 0.2s',
-          boxShadow: '0 4px 30px rgba(0,0,0,0.15)',
-        }}>
-          <span style={{ fontSize: 36, marginLeft: 4, color: '#fff' }}>▶</span>
-        </div>
+          position: 'absolute', inset: 0,
+          background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+          zIndex: 1,
+          opacity: (videoId && iframeLoaded) ? 0 : 1,
+          transition: 'opacity 0.5s',
+          pointerEvents: 'none',
+        }} />
 
-        {/* ステージバッジ（左上、トップバーの下に配置） */}
-        {item.stage && (
+        {/* YouTube iframe — アクティブまたは隣接カードのみ描画 */}
+        {videoId && isActive && (
+          <iframe
+            key={`${videoId}-${isActive}-${muted}`}
+            src={embedUrl}
+            title={item.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            onLoad={() => setIframeLoaded(true)}
+            style={{
+              position: 'absolute', inset: 0, zIndex: 2,
+              width: '100%', height: '100%', border: 'none',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
+        {/* 読み込み中スピナー */}
+        {videoId && isActive && !iframeLoaded && (
           <div style={{
-            position: 'absolute', top: 56, left: 16, zIndex: 10,
-            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
-            borderRadius: 20, padding: '5px 14px',
-            fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+            position: 'absolute', inset: 0, zIndex: 3,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {item.stage === '初期' ? '🍼' : item.stage === '中期' ? '🥄' : item.stage === '後期' ? '🦷' : '🍽️'} {item.stage}
+            <div style={{ fontSize: 40, animation: 'loadingPulse 1.5s infinite', color: '#fff' }}>▶</div>
           </div>
         )}
       </div>
 
+      {/* ミュートトグル（左上） */}
+      {videoId && isActive && (
+        <button
+          onClick={() => setMuted(m => !m)}
+          style={{
+            position: 'absolute', top: 56, right: 16, zIndex: 20,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, color: '#fff',
+          }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+      )}
+
+      {/* ステージバッジ */}
+      {(item.stage || item.baby_month_stage) && (
+        <div style={{
+          position: 'absolute', top: 56, left: 16, zIndex: 20,
+          background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
+          borderRadius: 20, padding: '5px 14px',
+          fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+        }}>
+          {(item.stage || '') === '初期' || item.baby_month_stage === 'ゴックン期' ? '🍼'
+            : (item.stage || '') === '中期' || item.baby_month_stage === 'モグモグ期' ? '🥄'
+            : (item.stage || '') === '後期' || item.baby_month_stage === 'カミカミ期' ? '🦷'
+            : '🍽️'} {item.stage || item.baby_month_stage}
+        </div>
+      )}
+
       {/* 右サイド TikTok風アクションバー */}
       <div style={{
-        position: 'absolute', right: 10, bottom: '32%',
+        position: 'absolute', right: 10, bottom: '28%',
         display: 'flex', flexDirection: 'column', gap: 16,
         alignItems: 'center', zIndex: 10,
       }}>
         <ShortsActionButton
           icon={liked ? '❤️' : '🤍'}
-          label={formatCount(liked ? (item.likes || 0) + 1 : (item.likes || 0))}
+          label={formatCount(liked ? (item.likes || item.likes_count || 0) + 1 : (item.likes || item.likes_count || 0))}
           onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
         />
         <ShortsActionButton
@@ -1650,7 +1699,7 @@ function ShortsCard({ item, cardHeight, isVisible }) {
         />
       </div>
 
-      {/* 下部情報オーバーレイ（25-30%） */}
+      {/* 下部情報オーバーレイ */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
         background: 'linear-gradient(transparent, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.75))',
@@ -1664,7 +1713,7 @@ function ShortsCard({ item, cardHeight, isVisible }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 18, flexShrink: 0,
           }}>
-            {item.avatar || (item.channel || '?')[0]}
+            {item.avatar || (item.channel || item.channel_name || '?')[0]}
           </div>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: FONT.base }}>
             {item.channel || item.channel_name || ''}
@@ -1709,16 +1758,16 @@ function ShortsCard({ item, cardHeight, isVisible }) {
         )}
 
         {/* ハッシュタグ */}
-        {item.hashtags?.length > 0 && (
+        {(item.hashtags || item.tags)?.length > 0 && (
           <div style={{
             display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4,
           }}>
-            {item.hashtags.map((tag) => (
+            {(item.hashtags || item.tags).map((tag) => (
               <span key={tag} style={{
                 color: 'rgba(255,255,255,0.9)',
                 fontSize: FONT.sm, fontWeight: 600,
               }}>
-                {tag}
+                {tag.startsWith('#') ? tag : `#${tag}`}
               </span>
             ))}
           </div>
@@ -1885,6 +1934,7 @@ function HomeTab() {
                 item={entry.data}
                 cardHeight={cardHeight}
                 isVisible={Math.abs(i - currentIndex) <= 2}
+                isActive={i === currentIndex}
               />
             ) : (
               <ShortsAd ad={entry.data} cardHeight={cardHeight} />
