@@ -1203,23 +1203,52 @@ const AD_BANNERS = [
   { id: 'ad12', brand: 'ユニクロベビー', emoji: '👶', color: '#FF0000', tagline: 'やわらか素材のベビー服', desc: '食べこぼしに強い！洗濯ラクちん', cta: 'オンラインストアへ', url: 'https://www.uniqlo.com/jp/ja/baby' },
 ];
 
+// ---------- A/Bテスト設定 ----------
+// 各スロット(広告枠)に A/B 2種の広告を割り当て、50%ずつ表示
+const AB_TESTS = [
+  { slot: 'slot-0', adA: 'ad01', adB: 'ad02' },
+  { slot: 'slot-1', adA: 'ad03', adB: 'ad04' },
+  { slot: 'slot-2', adA: 'ad05', adB: 'ad06' },
+  { slot: 'slot-3', adA: 'ad07', adB: 'ad08' },
+  { slot: 'slot-4', adA: 'ad09', adB: 'ad10' },
+  { slot: 'slot-5', adA: 'ad11', adB: 'ad12' },
+];
+
+const adById = {};
+AD_BANNERS.forEach(ad => { adById[ad.id] = ad; });
+
+// セッション内で同じスロットには同じバリアントを返す（一貫性）
+const slotVariantCache = {};
+
 function getAd(index) {
-  return AD_BANNERS[Math.floor(index) % AD_BANNERS.length];
+  const slotIndex = Math.floor(index) % AB_TESTS.length;
+  const test = AB_TESTS[slotIndex];
+
+  // セッション内キャッシュ: 同じスロットは常に同じバリアント
+  if (!slotVariantCache[test.slot]) {
+    slotVariantCache[test.slot] = Math.random() < 0.5 ? 'A' : 'B';
+  }
+  const variant = slotVariantCache[test.slot];
+  const adId = variant === 'A' ? test.adA : test.adB;
+  const ad = adById[adId] || AD_BANNERS[0];
+
+  // A/Bテスト情報を広告オブジェクトに付与
+  return { ...ad, _slot: test.slot, _variant: variant };
 }
 
-// 広告イベント記録（fire-and-forget）
-function trackAdEvent(adId, eventType) {
-  supabase.from('ad_analytics').insert({
-    ad_id: adId,
-    event_type: eventType,
-  }).then(({ error }) => {
+// 広告イベント記録（fire-and-forget、スロット・バリアント情報付き）
+function trackAdEvent(adId, eventType, slot, variant) {
+  const row = { ad_id: adId, event_type: eventType };
+  if (slot) row.slot = slot;
+  if (variant) row.variant = variant;
+  supabase.from('ad_analytics').insert(row).then(({ error }) => {
     if (error) console.error('ad_analytics insert error:', error);
   });
 }
 
 // 広告クリック処理
 function handleAdClick(ad) {
-  trackAdEvent(ad.id, 'click');
+  trackAdEvent(ad.id, 'click', ad._slot, ad._variant);
   if (ad.url) window.open(ad.url, '_blank', 'noopener,noreferrer');
 }
 
@@ -1335,7 +1364,7 @@ function Header({ title, subtitle }) {
 function BannerAd({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression'); }, [ad, isPremium, dismissed]);
+  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
   if (isPremium || dismissed || !ad) return null;
   return (
     <div className="tap-scale" onClick={() => handleAdClick(ad)} style={{
@@ -1370,7 +1399,7 @@ function BannerAd({ ad, style: extraStyle }) {
 function BannerAdLarge({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression'); }, [ad, isPremium, dismissed]);
+  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
   if (isPremium || dismissed || !ad) return null;
   return (
     <div style={{
@@ -1413,7 +1442,7 @@ function BannerAdLarge({ ad, style: extraStyle }) {
 function ShortsAd({ ad, cardHeight }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression'); }, [ad, isPremium, dismissed]);
+  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
   if (isPremium || dismissed || !ad) return null;
   return (
     <div style={{
@@ -3342,7 +3371,9 @@ function RecipeTab() {
 // ---------- 広告パフォーマンスパネル ----------
 function AdAnalyticsPanel() {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('overview'); // 'overview' | 'abtest'
   const [stats, setStats] = useState(null);
+  const [abResults, setAbResults] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const loadStats = async () => {
@@ -3352,10 +3383,10 @@ function AdAnalyticsPanel() {
     try {
       const { data, error } = await supabase
         .from('ad_analytics')
-        .select('ad_id, event_type');
+        .select('ad_id, event_type, slot, variant');
       if (error) { console.error('ad_analytics query error:', error); setLoading(false); return; }
 
-      // 集計
+      // --- 広告別集計 ---
       const map = {};
       (data || []).forEach(row => {
         if (!map[row.ad_id]) map[row.ad_id] = { impressions: 0, clicks: 0 };
@@ -3363,25 +3394,49 @@ function AdAnalyticsPanel() {
         if (row.event_type === 'click') map[row.ad_id].clicks++;
       });
 
-      // AD_BANNERS と結合してソート
       const result = AD_BANNERS.map(ad => ({
-        id: ad.id,
-        brand: ad.brand,
-        emoji: ad.emoji,
+        id: ad.id, brand: ad.brand, emoji: ad.emoji,
         impressions: map[ad.id]?.impressions || 0,
         clicks: map[ad.id]?.clicks || 0,
         ctr: map[ad.id]?.impressions > 0
-          ? ((map[ad.id].clicks / map[ad.id].impressions) * 100).toFixed(1)
-          : '0.0',
+          ? ((map[ad.id].clicks / map[ad.id].impressions) * 100).toFixed(1) : '0.0',
       })).sort((a, b) => parseFloat(b.ctr) - parseFloat(a.ctr));
-
       setStats(result);
+
+      // --- A/Bテスト集計 ---
+      const abMap = {}; // { slot: { A: {adId, imp, click}, B: {adId, imp, click} } }
+      (data || []).forEach(row => {
+        if (!row.slot || !row.variant) return;
+        if (!abMap[row.slot]) abMap[row.slot] = {};
+        if (!abMap[row.slot][row.variant]) abMap[row.slot][row.variant] = { adId: row.ad_id, impressions: 0, clicks: 0 };
+        abMap[row.slot][row.variant].adId = row.ad_id;
+        if (row.event_type === 'impression') abMap[row.slot][row.variant].impressions++;
+        if (row.event_type === 'click') abMap[row.slot][row.variant].clicks++;
+      });
+
+      const abRows = AB_TESTS.map(test => {
+        const a = abMap[test.slot]?.A || { adId: test.adA, impressions: 0, clicks: 0 };
+        const b = abMap[test.slot]?.B || { adId: test.adB, impressions: 0, clicks: 0 };
+        const ctrA = a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0;
+        const ctrB = b.impressions > 0 ? (b.clicks / b.impressions) * 100 : 0;
+        const winner = (a.impressions + b.impressions) < 10 ? null : ctrA > ctrB ? 'A' : ctrB > ctrA ? 'B' : null;
+        return {
+          slot: test.slot,
+          adA: adById[test.adA], adB: adById[test.adB],
+          a: { ...a, ctr: ctrA.toFixed(1) },
+          b: { ...b, ctr: ctrB.toFixed(1) },
+          winner,
+        };
+      });
+      setAbResults(abRows);
     } catch (e) { console.error('ad_analytics error:', e); }
     setLoading(false);
   };
 
   const totalImpressions = stats ? stats.reduce((s, r) => s + r.impressions, 0) : 0;
   const totalClicks = stats ? stats.reduce((s, r) => s + r.clicks, 0) : 0;
+
+  const ctrColor = (v) => parseFloat(v) > 3 ? '#4CAF50' : parseFloat(v) > 1 ? '#FF9800' : COLORS.textLight;
 
   return (
     <div style={{
@@ -3410,66 +3465,146 @@ function AdAnalyticsPanel() {
             <div style={{ textAlign: 'center', padding: SPACE.xl, color: COLORS.textLight, fontSize: FONT.sm }}>読み込み中...</div>
           ) : stats ? (
             <>
-              {/* サマリー */}
-              <div style={{
-                display: 'flex', gap: SPACE.sm, marginBottom: SPACE.md,
-              }}>
-                <div style={{
-                  flex: 1, background: `${COLORS.primary}10`, borderRadius: 12,
-                  padding: SPACE.md, textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総表示</div>
-                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.primary }}>{totalImpressions.toLocaleString()}</div>
-                </div>
-                <div style={{
-                  flex: 1, background: '#E8F5E910', borderRadius: 12,
-                  padding: SPACE.md, textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総クリック</div>
-                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#4CAF50' }}>{totalClicks.toLocaleString()}</div>
-                </div>
-                <div style={{
-                  flex: 1, background: '#FFF3E010', borderRadius: 12,
-                  padding: SPACE.md, textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>平均CTR</div>
-                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#FF9800' }}>
-                    {totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : '0.0'}%
-                  </div>
-                </div>
-              </div>
-
-              {/* 広告別テーブル */}
-              <div style={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
-                {/* ヘッダー */}
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
-                  padding: `${SPACE.sm}px ${SPACE.md}px`,
-                  background: COLORS.bg, fontWeight: 700, fontSize: FONT.xs, color: COLORS.textMuted,
-                }}>
-                  <span>広告</span>
-                  <span style={{ textAlign: 'right' }}>表示</span>
-                  <span style={{ textAlign: 'right' }}>Click</span>
-                  <span style={{ textAlign: 'right' }}>CTR</span>
-                </div>
-                {stats.map(row => (
-                  <div key={row.id} style={{
-                    display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
-                    padding: `${SPACE.sm}px ${SPACE.md}px`,
-                    borderTop: `1px solid ${COLORS.border}`, alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {row.emoji} {row.brand}
-                    </span>
-                    <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.impressions}</span>
-                    <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.clicks}</span>
-                    <span style={{
-                      textAlign: 'right', fontSize: FONT.sm, fontWeight: 700,
-                      color: parseFloat(row.ctr) > 3 ? '#4CAF50' : parseFloat(row.ctr) > 1 ? '#FF9800' : COLORS.textLight,
-                    }}>{row.ctr}%</span>
-                  </div>
+              {/* タブ切替 */}
+              <div style={{ display: 'flex', gap: SPACE.xs, marginBottom: SPACE.md }}>
+                {[{ key: 'overview', label: '全体' }, { key: 'abtest', label: 'A/Bテスト' }].map(t => (
+                  <button key={t.key} onClick={() => setTab(t.key)} style={{
+                    flex: 1, padding: `${SPACE.sm}px`, borderRadius: 10,
+                    border: `1.5px solid ${tab === t.key ? COLORS.primary : COLORS.border}`,
+                    background: tab === t.key ? `${COLORS.primary}10` : '#fff',
+                    color: tab === t.key ? COLORS.primary : COLORS.textLight,
+                    fontWeight: 700, fontSize: FONT.sm, cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'all 0.2s',
+                  }}>{t.label}</button>
                 ))}
               </div>
+
+              {tab === 'overview' && (
+                <>
+                  {/* サマリー */}
+                  <div style={{ display: 'flex', gap: SPACE.sm, marginBottom: SPACE.md }}>
+                    <div style={{ flex: 1, background: `${COLORS.primary}10`, borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総表示</div>
+                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.primary }}>{totalImpressions.toLocaleString()}</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#E8F5E910', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総クリック</div>
+                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#4CAF50' }}>{totalClicks.toLocaleString()}</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#FFF3E010', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>平均CTR</div>
+                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#FF9800' }}>
+                        {totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : '0.0'}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 広告別テーブル */}
+                  <div style={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
+                      padding: `${SPACE.sm}px ${SPACE.md}px`,
+                      background: COLORS.bg, fontWeight: 700, fontSize: FONT.xs, color: COLORS.textMuted,
+                    }}>
+                      <span>広告</span>
+                      <span style={{ textAlign: 'right' }}>表示</span>
+                      <span style={{ textAlign: 'right' }}>Click</span>
+                      <span style={{ textAlign: 'right' }}>CTR</span>
+                    </div>
+                    {stats.map(row => (
+                      <div key={row.id} style={{
+                        display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
+                        padding: `${SPACE.sm}px ${SPACE.md}px`,
+                        borderTop: `1px solid ${COLORS.border}`, alignItems: 'center',
+                      }}>
+                        <span style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {row.emoji} {row.brand}
+                        </span>
+                        <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.impressions}</span>
+                        <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.clicks}</span>
+                        <span style={{ textAlign: 'right', fontSize: FONT.sm, fontWeight: 700, color: ctrColor(row.ctr) }}>{row.ctr}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {tab === 'abtest' && abResults && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md }}>
+                  {abResults.map(test => (
+                    <div key={test.slot} style={{
+                      borderRadius: 14, border: `1px solid ${COLORS.border}`,
+                      overflow: 'hidden',
+                    }}>
+                      {/* スロットヘッダー */}
+                      <div style={{
+                        background: COLORS.bg, padding: `${SPACE.sm}px ${SPACE.md}px`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      }}>
+                        <span style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text }}>
+                          {test.slot}
+                        </span>
+                        {test.winner && (
+                          <span style={{
+                            fontSize: FONT.xs, fontWeight: 700, padding: '2px 8px', borderRadius: 8,
+                            background: test.winner === 'A' ? '#4CAF5020' : '#2196F320',
+                            color: test.winner === 'A' ? '#4CAF50' : '#2196F3',
+                          }}>
+                            {test.winner} が優勢
+                          </span>
+                        )}
+                        {!test.winner && (test.a.impressions + test.b.impressions) < 10 && (
+                          <span style={{ fontSize: FONT.xs, color: COLORS.textMuted }}>
+                            データ不足
+                          </span>
+                        )}
+                      </div>
+
+                      {/* A vs B 比較 */}
+                      {[
+                        { label: 'A', data: test.a, ad: test.adA, isWinner: test.winner === 'A' },
+                        { label: 'B', data: test.b, ad: test.adB, isWinner: test.winner === 'B' },
+                      ].map(v => (
+                        <div key={v.label} style={{
+                          padding: `${SPACE.sm}px ${SPACE.md}px`,
+                          borderTop: `1px solid ${COLORS.border}`,
+                          display: 'flex', alignItems: 'center', gap: SPACE.sm,
+                          background: v.isWinner ? (v.label === 'A' ? '#4CAF5008' : '#2196F308') : '#fff',
+                        }}>
+                          <span style={{
+                            width: 24, height: 24, borderRadius: 6,
+                            background: v.label === 'A' ? '#4CAF5018' : '#2196F318',
+                            color: v.label === 'A' ? '#4CAF50' : '#2196F3',
+                            fontSize: FONT.xs, fontWeight: 900,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>{v.label}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {v.ad?.emoji} {v.ad?.brand}
+                            </div>
+                            <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 1 }}>
+                              {v.data.impressions} 表示 / {v.data.clicks} Click
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: FONT.base, fontWeight: 900, color: ctrColor(v.data.ctr) }}>
+                              {v.data.ctr}%
+                            </div>
+                            {/* CTR バー */}
+                            <div style={{ width: 50, height: 4, borderRadius: 2, background: COLORS.border, marginTop: 3 }}>
+                              <div style={{
+                                width: `${Math.min(parseFloat(v.data.ctr) * 10, 100)}%`,
+                                height: '100%', borderRadius: 2,
+                                background: v.label === 'A' ? '#4CAF50' : '#2196F3',
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: SPACE.xl, color: COLORS.textLight, fontSize: FONT.sm }}>
