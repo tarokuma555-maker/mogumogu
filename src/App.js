@@ -908,14 +908,14 @@ const ALLERGENS = [
 
 // ---------- フォールバック動画データ ----------
 const FALLBACK_VIDEOS = [
-  { id: 'demo-1', youtube_id: null, title: '🍚 10倍がゆの作り方', channel_name: '離乳食チャンネル', baby_month_stage: '初期', thumbnail_url: null, likes_count: 1200 },
-  { id: 'demo-2', youtube_id: null, title: '🥕 にんじんペーストが30秒で完成', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', thumbnail_url: null, likes_count: 890 },
-  { id: 'demo-3', youtube_id: null, title: '🎃 かぼちゃポタージュ', channel_name: 'ベビーフード研究所', baby_month_stage: '中期', thumbnail_url: null, likes_count: 1560 },
-  { id: 'demo-4', youtube_id: null, title: '🐟 しらすの塩抜き完全マニュアル', channel_name: 'りにゅう食ラボ', baby_month_stage: '初期', thumbnail_url: null, likes_count: 2030 },
-  { id: 'demo-5', youtube_id: null, title: '🥦 ブロッコリー×おかゆ 栄養MAX', channel_name: 'ママの時短キッチン', baby_month_stage: '中期', thumbnail_url: null, likes_count: 780 },
-  { id: 'demo-6', youtube_id: null, title: '✋ 手づかみ食べデビュー3選', channel_name: 'ベビーフード研究所', baby_month_stage: '後期', thumbnail_url: null, likes_count: 2450 },
-  { id: 'demo-7', youtube_id: null, title: '🧊 1週間分の冷凍ストック術', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', thumbnail_url: null, likes_count: 3120 },
-  { id: 'demo-8', youtube_id: null, title: '🍳 ふわふわ豆腐ハンバーグ', channel_name: 'りにゅう食ラボ', baby_month_stage: '後期', thumbnail_url: null, likes_count: 1890 },
+  { id: 'demo-1', youtube_id: null, title: '🍚 10倍がゆの作り方', channel_name: '離乳食チャンネル', baby_month_stage: '初期', likes_count: 1200 },
+  { id: 'demo-2', youtube_id: null, title: '🥕 にんじんペーストが30秒で完成', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', likes_count: 890 },
+  { id: 'demo-3', youtube_id: null, title: '🎃 かぼちゃポタージュ', channel_name: 'ベビーフード研究所', baby_month_stage: '中期', likes_count: 1560 },
+  { id: 'demo-4', youtube_id: null, title: '🐟 しらすの塩抜き完全マニュアル', channel_name: 'りにゅう食ラボ', baby_month_stage: '初期', likes_count: 2030 },
+  { id: 'demo-5', youtube_id: null, title: '🥦 ブロッコリー×おかゆ 栄養MAX', channel_name: 'ママの時短キッチン', baby_month_stage: '中期', likes_count: 780 },
+  { id: 'demo-6', youtube_id: null, title: '✋ 手づかみ食べデビュー3選', channel_name: 'ベビーフード研究所', baby_month_stage: '後期', likes_count: 2450 },
+  { id: 'demo-7', youtube_id: null, title: '🧊 1週間分の冷凍ストック術', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', likes_count: 3120 },
+  { id: 'demo-8', youtube_id: null, title: '🍳 ふわふわ豆腐ハンバーグ', channel_name: 'りにゅう食ラボ', baby_month_stage: '後期', likes_count: 1890 },
 ];
 
 // ---------- リッチレシピデータベース ----------
@@ -1455,13 +1455,20 @@ const SHORTS_PAGE_SIZE = 20;
 
 async function fetchVideosPage(pageNum) {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('videos')
       .select('*')
-      .order('cached_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(pageNum * SHORTS_PAGE_SIZE, (pageNum + 1) * SHORTS_PAGE_SIZE - 1);
+    if (error) {
+      console.error('fetchVideosPage error:', error);
+      return [];
+    }
     return data || [];
-  } catch { return []; }
+  } catch (e) {
+    console.error('fetchVideosPage exception:', e);
+    return [];
+  }
 }
 
 const STAGE_DISPLAY = {
@@ -1482,8 +1489,7 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
   const playTimerRef = useRef(null);
 
   const videoId = item.youtube_id;
-  const thumbnailUrl = item.thumbnail_url
-    || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null);
+  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
 
   // Shorts 用 embed URL
   const embedUrl = videoId

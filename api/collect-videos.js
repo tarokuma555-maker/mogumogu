@@ -116,7 +116,6 @@ module.exports = async function handler(req, res) {
     }
 
     // フィルタリング: embeddable + 60秒以下 + 離乳食キーワード
-    const now = new Date().toISOString();
     const seen = new Set();
     const rows = allItems
       .filter(v => {
@@ -134,22 +133,27 @@ module.exports = async function handler(req, res) {
         title: v.snippet.title,
         description: v.snippet.description,
         channel_name: v.snippet.channelTitle,
-        thumbnail_url: v.snippet.thumbnails?.high?.url
-          || v.snippet.thumbnails?.medium?.url
-          || v.snippet.thumbnails?.default?.url
-          || null,
         baby_month_stage: guessStage(v.snippet.title, v.snippet.description),
         tags: [],
         likes_count: 0,
         views_count: 0,
-        cached_at: now,
       }));
 
     if (rows.length > 0) {
-      const { error: upsertError } = await supabase
+      // 既存の youtube_id を取得して重複を除外
+      const { data: existing } = await supabase
         .from('videos')
-        .upsert(rows, { onConflict: 'youtube_id' });
-      if (upsertError) console.error('Upsert error:', upsertError);
+        .select('youtube_id')
+        .in('youtube_id', rows.map(r => r.youtube_id));
+      const existingIds = new Set((existing || []).map(e => e.youtube_id));
+      const newRows = rows.filter(r => !existingIds.has(r.youtube_id));
+
+      if (newRows.length > 0) {
+        const { error: insertError } = await supabase
+          .from('videos')
+          .insert(newRows);
+        if (insertError) console.error('Insert error:', insertError);
+      }
     }
 
     return res.status(200).json({
