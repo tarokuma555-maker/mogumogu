@@ -1,16 +1,190 @@
 import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
+import { supabase } from './lib/supabase';
 
 // ============================================================
 // MoguMogu - 離乳食サポートアプリ
 // ============================================================
 
+// ---------- 認証システム ----------
+const AuthContext = createContext();
+
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authScreen, setAuthScreen] = useState(null);
+
+  const fetchUserProfile = useCallback(async (userId) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (data) {
+      setUserProfile(data);
+      localStorage.setItem('mogumogu_month', data.baby_month.toString());
+      localStorage.setItem('mogumogu_allergens', JSON.stringify(data.allergens || []));
+      if (!data.onboarding_done) {
+        setAuthScreen('onboarding');
+      }
+    } else if (error?.code === 'PGRST116') {
+      setAuthScreen('onboarding');
+    }
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchUserProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setUserProfile(null);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfile]);
+
+  const signUpWithEmail = async (email, password, nickname, babyMonth) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error };
+    if (data.user) {
+      const { error: insertError } = await supabase.from('users').insert({
+        id: data.user.id,
+        nickname,
+        baby_month: babyMonth,
+        allergens: [],
+        is_premium: false,
+        onboarding_done: false,
+      });
+      if (insertError) return { error: insertError };
+      await fetchUserProfile(data.user.id);
+    }
+    return { data };
+  };
+
+  const signInWithEmail = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    return { data, error };
+  };
+
+  const signInWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    return { data, error };
+  };
+
+  const signInWithLINE = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'line',
+      options: { redirectTo: window.location.origin },
+    });
+    return { data, error };
+  };
+
+  const resetPassword = async (email) => {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    return { data, error };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserProfile(null);
+    setAuthScreen(null);
+    localStorage.removeItem('mogumogu_premium');
+  };
+
+  const updateProfile = async (updates) => {
+    if (!user) return { error: { message: 'Not authenticated' } };
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+    if (data) {
+      setUserProfile(data);
+      if (updates.baby_month !== undefined) {
+        localStorage.setItem('mogumogu_month', updates.baby_month.toString());
+      }
+      if (updates.allergens !== undefined) {
+        localStorage.setItem('mogumogu_allergens', JSON.stringify(updates.allergens));
+      }
+    }
+    return { data, error };
+  };
+
+  const completeOnboarding = async (babyMonth, allergens) => {
+    if (!user) return { error: { message: 'Not authenticated' } };
+    const profileExists = !!userProfile;
+    let result;
+    if (profileExists) {
+      result = await updateProfile({ baby_month: babyMonth, allergens, onboarding_done: true });
+    } else {
+      const { data, error } = await supabase.from('users').insert({
+        id: user.id,
+        nickname: user.user_metadata?.full_name || user.email?.split('@')[0] || 'ユーザー',
+        baby_month: babyMonth,
+        allergens,
+        is_premium: false,
+        onboarding_done: true,
+      }).select().single();
+      if (data) setUserProfile(data);
+      result = { data, error };
+    }
+    if (!result.error) {
+      setAuthScreen(null);
+    }
+    return result;
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user, userProfile, loading,
+      authScreen, setAuthScreen,
+      signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithLINE,
+      resetPassword, signOut,
+      updateProfile, completeOnboarding,
+      isAuthenticated: !!user,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function useAuth() {
+  return useContext(AuthContext);
+}
+
 // ---------- プレミアム課金システム ----------
 const PremiumContext = createContext();
 
 function PremiumProvider({ children }) {
+  const { userProfile } = useAuth();
   const [isPremium, setIsPremium] = useState(() => {
     try { return localStorage.getItem('mogumogu_premium') === 'true'; } catch { return false; }
   });
+  useEffect(() => {
+    if (userProfile) {
+      setIsPremium(userProfile.is_premium);
+      localStorage.setItem('mogumogu_premium', userProfile.is_premium.toString());
+    }
+  }, [userProfile]);
   const [searchCount, setSearchCount] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('mogumogu_usage') || '{}');
@@ -38,10 +212,13 @@ function PremiumProvider({ children }) {
     }));
   };
 
-  const togglePremium = () => {
+  const togglePremium = async () => {
     const next = !isPremium;
     setIsPremium(next);
     localStorage.setItem('mogumogu_premium', next.toString());
+    if (userProfile) {
+      await supabase.from('users').update({ is_premium: next }).eq('id', userProfile.id);
+    }
   };
 
   const trySearch = () => {
@@ -104,6 +281,451 @@ function PremiumProvider({ children }) {
 
 function usePremium() {
   return useContext(PremiumContext);
+}
+
+// ---------- 認証画面 ----------
+function LoginScreen() {
+  const { signInWithEmail, signInWithGoogle, signInWithLINE, setAuthScreen } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) { setError('メールアドレスとパスワードを入力してください'); return; }
+    setIsLoading(true);
+    setError('');
+    const { error: err } = await signInWithEmail(email, password);
+    if (err) setError(err.message === 'Invalid login credentials' ? 'メールアドレスまたはパスワードが正しくありません' : err.message);
+    setIsLoading(false);
+  };
+
+  const inputStyle = {
+    width: '100%', padding: `${SPACE.md}px ${SPACE.lg}px`, borderRadius: 14,
+    border: `2px solid ${COLORS.border}`, fontSize: FONT.base, fontFamily: 'inherit',
+    color: COLORS.text, outline: 'none', background: '#fff', boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
+      <div style={{ padding: `60px ${SPACE.xl}px ${SPACE.xl}px` }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontSize: 64, marginBottom: SPACE.sm }}>🍙</div>
+          <div style={{ fontSize: FONT.xxl, fontWeight: 900, color: COLORS.primaryDark, letterSpacing: 1 }}>MoguMogu</div>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.xs }}>離乳食サポートアプリ</div>
+        </div>
+
+        {error && (
+          <div style={{ background: '#FFF5F5', border: `1px solid ${COLORS.danger}`, borderRadius: 12, padding: SPACE.md, marginBottom: SPACE.lg, fontSize: FONT.sm, color: COLORS.danger, textAlign: 'center' }}>{error}</div>
+        )}
+
+        <div style={{ marginBottom: SPACE.md }}>
+          <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>メールアドレス</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@mail.com" style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: SPACE.sm }}>
+          <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>パスワード</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="パスワードを入力" style={inputStyle}
+            onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }} />
+        </div>
+
+        <div style={{ textAlign: 'right', marginBottom: SPACE.xl }}>
+          <button onClick={() => setAuthScreen('reset')} style={{ background: 'none', border: 'none', color: COLORS.primary, fontSize: FONT.sm, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+            パスワードを忘れた方
+          </button>
+        </div>
+
+        <button className="tap-scale" onClick={handleLogin} disabled={isLoading} style={{
+          width: '100%', padding: SPACE.lg, borderRadius: 16, border: 'none',
+          background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+          color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
+          fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+          opacity: isLoading ? 0.7 : 1, marginBottom: SPACE.xl,
+        }}>
+          {isLoading ? 'ログイン中...' : 'ログイン'}
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: SPACE.md, marginBottom: SPACE.lg }}>
+          <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+          <span style={{ fontSize: FONT.sm, color: COLORS.textLight }}>または</span>
+          <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+        </div>
+
+        <button className="tap-scale" onClick={signInWithGoogle} style={{
+          width: '100%', padding: SPACE.md, borderRadius: 14, border: `2px solid ${COLORS.border}`,
+          background: '#fff', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
+          fontFamily: 'inherit', color: COLORS.text, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.sm,
+        }}>
+          <span style={{ fontSize: 20 }}>G</span> Googleでログイン
+        </button>
+
+        <button className="tap-scale" onClick={signInWithLINE} style={{
+          width: '100%', padding: SPACE.md, borderRadius: 14, border: 'none',
+          background: '#06C755', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
+          fontFamily: 'inherit', color: '#fff', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.xxl,
+        }}>
+          <span style={{ fontSize: 18 }}>💬</span> LINEでログイン
+        </button>
+
+        <div style={{ textAlign: 'center', marginBottom: SPACE.lg }}>
+          <span style={{ fontSize: FONT.sm, color: COLORS.textLight }}>アカウントをお持ちでない方 </span>
+          <button onClick={() => setAuthScreen('signup')} style={{ background: 'none', border: 'none', color: COLORS.primary, fontSize: FONT.sm, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+            新規登録
+          </button>
+        </div>
+
+        <button onClick={() => setAuthScreen(null)} style={{
+          width: '100%', padding: SPACE.md, borderRadius: 14, border: 'none',
+          background: 'none', fontSize: FONT.sm, color: COLORS.textLight,
+          fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          ログインせずに使う →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SignupScreen() {
+  const { signUpWithEmail, signInWithGoogle, signInWithLINE, setAuthScreen } = useAuth();
+  const [nickname, setNickname] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [babyMonth, setBabyMonth] = useState(6);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentStage = MONTH_STAGES.find(s => s.months.includes(babyMonth)) || MONTH_STAGES[0];
+
+  const handleSignup = async () => {
+    if (!nickname.trim()) { setError('ニックネームを入力してください'); return; }
+    if (!email) { setError('メールアドレスを入力してください'); return; }
+    if (password.length < 6) { setError('パスワードは6文字以上で入力してください'); return; }
+    setIsLoading(true);
+    setError('');
+    const { error: err } = await signUpWithEmail(email, password, nickname.trim(), babyMonth);
+    if (err) {
+      setError(err.message === 'User already registered' ? 'このメールアドレスは既に登録されています' : err.message);
+    }
+    setIsLoading(false);
+  };
+
+  const inputStyle = {
+    width: '100%', padding: `${SPACE.md}px ${SPACE.lg}px`, borderRadius: 14,
+    border: `2px solid ${COLORS.border}`, fontSize: FONT.base, fontFamily: 'inherit',
+    color: COLORS.text, outline: 'none', background: '#fff', boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
+      <div style={{ padding: `${SPACE.xl}px` }}>
+        <button onClick={() => setAuthScreen('login')} style={{
+          background: 'none', border: 'none', fontSize: FONT.xl, cursor: 'pointer',
+          color: COLORS.text, fontFamily: 'inherit', padding: `${SPACE.sm}px 0`, marginBottom: SPACE.md,
+        }}>← 戻る</button>
+
+        <div style={{ textAlign: 'center', marginBottom: SPACE.xxl }}>
+          <div style={{ fontSize: 48, marginBottom: SPACE.xs }}>👶</div>
+          <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.text }}>新規登録</div>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.xs }}>お子さまの離乳食をサポートします</div>
+        </div>
+
+        {error && (
+          <div style={{ background: '#FFF5F5', border: `1px solid ${COLORS.danger}`, borderRadius: 12, padding: SPACE.md, marginBottom: SPACE.lg, fontSize: FONT.sm, color: COLORS.danger, textAlign: 'center' }}>{error}</div>
+        )}
+
+        <div style={{ marginBottom: SPACE.md }}>
+          <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>ニックネーム</label>
+          <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="例：はるママ" style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: SPACE.md }}>
+          <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>メールアドレス</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@mail.com" style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: SPACE.xl }}>
+          <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>パスワード（6文字以上）</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="パスワードを入力" style={inputStyle} />
+        </div>
+
+        <div style={{ background: COLORS.card, borderRadius: 16, padding: SPACE.lg, marginBottom: SPACE.xl, border: `1px solid ${COLORS.border}` }}>
+          <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.md, textAlign: 'center' }}>赤ちゃんの月齢</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: SPACE.lg, marginBottom: SPACE.md }}>
+            <button className="tap-scale" onClick={() => setBabyMonth(m => Math.max(5, m - 1))} style={{
+              width: 44, height: 44, borderRadius: '50%', border: `2px solid ${COLORS.border}`,
+              background: '#fff', fontSize: FONT.xl, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text,
+            }}>−</button>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: COLORS.primary }}>{babyMonth}</div>
+              <div style={{ fontSize: FONT.xs, color: COLORS.textLight }}>ヶ月</div>
+            </div>
+            <button className="tap-scale" onClick={() => setBabyMonth(m => Math.min(18, m + 1))} style={{
+              width: 44, height: 44, borderRadius: '50%', border: `2px solid ${COLORS.border}`,
+              background: '#fff', fontSize: FONT.xl, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text,
+            }}>+</button>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: FONT.sm, color: COLORS.textLight }}>
+            {currentStage.emoji} {currentStage.label}（{currentStage.range}）
+          </div>
+        </div>
+
+        <button className="tap-scale" onClick={handleSignup} disabled={isLoading} style={{
+          width: '100%', padding: SPACE.lg, borderRadius: 16, border: 'none',
+          background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+          color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
+          fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+          opacity: isLoading ? 0.7 : 1, marginBottom: SPACE.xl,
+        }}>
+          {isLoading ? '登録中...' : 'アカウントを作成'}
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: SPACE.md, marginBottom: SPACE.lg }}>
+          <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+          <span style={{ fontSize: FONT.sm, color: COLORS.textLight }}>または</span>
+          <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+        </div>
+
+        <button className="tap-scale" onClick={signInWithGoogle} style={{
+          width: '100%', padding: SPACE.md, borderRadius: 14, border: `2px solid ${COLORS.border}`,
+          background: '#fff', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
+          fontFamily: 'inherit', color: COLORS.text, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.sm,
+        }}>
+          <span style={{ fontSize: 20 }}>G</span> Googleで登録
+        </button>
+
+        <button className="tap-scale" onClick={signInWithLINE} style={{
+          width: '100%', padding: SPACE.md, borderRadius: 14, border: 'none',
+          background: '#06C755', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
+          fontFamily: 'inherit', color: '#fff', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
+        }}>
+          <span style={{ fontSize: 18 }}>💬</span> LINEで登録
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordScreen() {
+  const { resetPassword, setAuthScreen } = useAuth();
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReset = async () => {
+    if (!email) { setError('メールアドレスを入力してください'); return; }
+    setIsLoading(true);
+    setError('');
+    const { error: err } = await resetPassword(email);
+    if (err) { setError(err.message); }
+    else { setSent(true); }
+    setIsLoading(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
+      <div style={{ padding: `${SPACE.xl}px` }}>
+        <button onClick={() => setAuthScreen('login')} style={{
+          background: 'none', border: 'none', fontSize: FONT.xl, cursor: 'pointer',
+          color: COLORS.text, fontFamily: 'inherit', padding: `${SPACE.sm}px 0`, marginBottom: SPACE.md,
+        }}>← 戻る</button>
+
+        <div style={{ textAlign: 'center', marginBottom: SPACE.xxl }}>
+          <div style={{ fontSize: 48, marginBottom: SPACE.xs }}>🔑</div>
+          <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.text }}>パスワードリセット</div>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.xs, lineHeight: 1.6 }}>
+            登録済みのメールアドレスに<br />リセットリンクを送信します
+          </div>
+        </div>
+
+        {sent ? (
+          <div style={{ background: '#F0FFF4', border: `1px solid ${COLORS.success}`, borderRadius: 16, padding: SPACE.xl, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: SPACE.md }}>✉️</div>
+            <div style={{ fontSize: FONT.lg, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.sm }}>メールを送信しました</div>
+            <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.6, marginBottom: SPACE.xl }}>
+              {email} にリセットリンクを送信しました。<br />メールを確認してください。
+            </div>
+            <button className="tap-scale" onClick={() => setAuthScreen('login')} style={{
+              padding: `${SPACE.md}px ${SPACE.xxl}px`, borderRadius: 14, border: 'none',
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+              color: '#fff', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            }}>ログイン画面に戻る</button>
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div style={{ background: '#FFF5F5', border: `1px solid ${COLORS.danger}`, borderRadius: 12, padding: SPACE.md, marginBottom: SPACE.lg, fontSize: FONT.sm, color: COLORS.danger, textAlign: 'center' }}>{error}</div>
+            )}
+            <div style={{ marginBottom: SPACE.xl }}>
+              <label style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs, display: 'block' }}>メールアドレス</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@mail.com"
+                style={{ width: '100%', padding: `${SPACE.md}px ${SPACE.lg}px`, borderRadius: 14, border: `2px solid ${COLORS.border}`, fontSize: FONT.base, fontFamily: 'inherit', color: COLORS.text, outline: 'none', background: '#fff', boxSizing: 'border-box' }}
+                onKeyDown={e => { if (e.key === 'Enter') handleReset(); }} />
+            </div>
+            <button className="tap-scale" onClick={handleReset} disabled={isLoading} style={{
+              width: '100%', padding: SPACE.lg, borderRadius: 16, border: 'none',
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+              color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+              opacity: isLoading ? 0.7 : 1,
+            }}>
+              {isLoading ? '送信中...' : 'リセットリンクを送信'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OnboardingScreen() {
+  const { completeOnboarding, user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [babyMonth, setBabyMonth] = useState(6);
+  const [selectedAllergens, setSelectedAllergens] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentStage = MONTH_STAGES.find(s => s.months.includes(babyMonth)) || MONTH_STAGES[0];
+
+  const toggleAllergen = (id) => {
+    setSelectedAllergens(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
+  };
+
+  const handleComplete = async () => {
+    setIsLoading(true);
+    await completeOnboarding(babyMonth, selectedAllergens);
+    setIsLoading(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
+      <div style={{ padding: `${SPACE.xl}px` }}>
+        {/* プログレスバー */}
+        <div style={{ display: 'flex', gap: SPACE.sm, marginBottom: SPACE.xxl, marginTop: SPACE.lg }}>
+          {[1, 2].map(n => (
+            <div key={n} style={{
+              flex: 1, height: 4, borderRadius: 2,
+              background: n <= step ? COLORS.primary : COLORS.border,
+              transition: 'background 0.3s ease',
+            }} />
+          ))}
+        </div>
+
+        {step === 1 ? (
+          <div className="fade-in">
+            <div style={{ textAlign: 'center', marginBottom: SPACE.xxl }}>
+              <div style={{ fontSize: 64, marginBottom: SPACE.sm }}>👶</div>
+              <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.text }}>
+                {user?.user_metadata?.full_name || 'ようこそ'}さん！
+              </div>
+              <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.sm, lineHeight: 1.6 }}>
+                お子さまの月齢を教えてください<br />最適なレシピをご提案します
+              </div>
+            </div>
+
+            <div style={{ background: COLORS.card, borderRadius: 20, padding: SPACE.xl, marginBottom: SPACE.xl, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: SPACE.xl, marginBottom: SPACE.lg }}>
+                <button className="tap-scale" onClick={() => setBabyMonth(m => Math.max(5, m - 1))} style={{
+                  width: 52, height: 52, borderRadius: '50%', border: `2px solid ${COLORS.border}`,
+                  background: '#fff', fontSize: 24, cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text,
+                }}>−</button>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 48, fontWeight: 900, color: COLORS.primary }}>{babyMonth}</div>
+                  <div style={{ fontSize: FONT.sm, color: COLORS.textLight }}>ヶ月</div>
+                </div>
+                <button className="tap-scale" onClick={() => setBabyMonth(m => Math.min(18, m + 1))} style={{
+                  width: 52, height: 52, borderRadius: '50%', border: `2px solid ${COLORS.border}`,
+                  background: '#fff', fontSize: 24, cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text,
+                }}>+</button>
+              </div>
+
+              <input type="range" min={5} max={18} value={babyMonth} onChange={e => setBabyMonth(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: SPACE.lg }} />
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE.sm, justifyContent: 'center' }}>
+                {MONTH_STAGES.map((s) => (
+                  <div key={s.label} style={{
+                    padding: `${SPACE.xs}px ${SPACE.md}px`, borderRadius: 20, fontSize: FONT.sm,
+                    background: s === currentStage ? `${COLORS.primary}20` : COLORS.tagBg,
+                    color: s === currentStage ? COLORS.primaryDark : COLORS.textLight,
+                    fontWeight: s === currentStage ? 700 : 400, transition: 'all 0.2s ease',
+                  }}>
+                    {s.emoji} {s.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button className="tap-scale" onClick={() => setStep(2)} style={{
+              width: '100%', padding: SPACE.lg, borderRadius: 16, border: 'none',
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+              color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+            }}>
+              次へ →
+            </button>
+          </div>
+        ) : (
+          <div className="fade-in">
+            <div style={{ textAlign: 'center', marginBottom: SPACE.xxl }}>
+              <div style={{ fontSize: 64, marginBottom: SPACE.sm }}>⚠️</div>
+              <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.text }}>アレルゲン設定</div>
+              <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.sm, lineHeight: 1.6 }}>
+                気をつけたいアレルゲンを選択してください<br />（あとから変更できます）
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SPACE.md, marginBottom: SPACE.xxl }}>
+              {ALLERGENS.map(a => {
+                const selected = selectedAllergens.includes(a.id);
+                return (
+                  <button className="tap-scale" key={a.id} onClick={() => toggleAllergen(a.id)} style={{
+                    padding: SPACE.lg, borderRadius: 16,
+                    border: `2px solid ${selected ? COLORS.danger : COLORS.border}`,
+                    background: selected ? '#FFF5F5' : '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    <div style={{ fontSize: 32, marginBottom: SPACE.xs }}>{a.emoji}</div>
+                    <div style={{ fontSize: FONT.base, fontWeight: 700, color: selected ? COLORS.danger : COLORS.text }}>{a.name}</div>
+                    {selected && <div style={{ fontSize: FONT.xs, color: COLORS.danger, marginTop: 2 }}>✓ 選択中</div>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: SPACE.md }}>
+              <button className="tap-scale" onClick={() => setStep(1)} style={{
+                flex: 1, padding: SPACE.lg, borderRadius: 16,
+                border: `2px solid ${COLORS.border}`, background: '#fff',
+                fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', color: COLORS.text,
+              }}>← 戻る</button>
+              <button className="tap-scale" onClick={handleComplete} disabled={isLoading} style={{
+                flex: 2, padding: SPACE.lg, borderRadius: 16, border: 'none',
+                background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+                color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
+                fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+                opacity: isLoading ? 0.7 : 1,
+              }}>
+                {isLoading ? '設定中...' : '始める 🎉'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ---------- Paywallモーダル ----------
@@ -2369,11 +2991,14 @@ function RecipeTab() {
 // ---------- 設定タブ ----------
 function SettingsTab() {
   const { isPremium, togglePremium, setShowPaywall, setPaywallReason, searchCount, recipeGenCount, commentCount } = usePremium();
+  const { userProfile, updateProfile, signOut, user } = useAuth();
   const [babyMonth, setBabyMonth] = useState(() => {
+    if (userProfile) return userProfile.baby_month;
     try { return parseInt(localStorage.getItem('mogumogu_month')) || 6; }
     catch { return 6; }
   });
   const [selectedAllergens, setSelectedAllergens] = useState(() => {
+    if (userProfile) return userProfile.allergens || [];
     try { return JSON.parse(localStorage.getItem('mogumogu_allergens')) || []; }
     catch { return []; }
   });
@@ -2387,9 +3012,12 @@ function SettingsTab() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem('mogumogu_month', babyMonth.toString());
     localStorage.setItem('mogumogu_allergens', JSON.stringify(selectedAllergens));
+    if (userProfile) {
+      await updateProfile({ baby_month: babyMonth, allergens: selectedAllergens });
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -2399,6 +3027,32 @@ function SettingsTab() {
       <Header title="⚙️ 設定" subtitle="お子さまの情報を登録しよう" />
 
       <div style={{ padding: SPACE.lg }}>
+        {/* プロフィールカード */}
+        {user && (
+          <div style={{
+            background: COLORS.card, borderRadius: 18, padding: SPACE.lg,
+            marginBottom: SPACE.xl, border: `1px solid ${COLORS.border}`,
+            display: 'flex', alignItems: 'center', gap: SPACE.md,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22, color: '#fff', fontWeight: 900, flexShrink: 0,
+            }}>
+              {(userProfile?.nickname || user.email || '?')[0].toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: FONT.lg, fontWeight: 700, color: COLORS.text }}>
+                {userProfile?.nickname || 'ユーザー'}
+              </div>
+              <div style={{ fontSize: FONT.sm, color: COLORS.textLight, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.email}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 赤ちゃん情報カード */}
         <div style={{
           background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
@@ -2748,6 +3402,18 @@ function SettingsTab() {
           {saved ? '✓ 保存しました！' : '💾 設定を保存する'}
         </button>
 
+        {/* ログアウトボタン */}
+        {user && (
+          <button className="tap-scale" onClick={signOut} style={{
+            width: '100%', padding: SPACE.lg, borderRadius: 16,
+            border: `2px solid ${COLORS.danger}`, background: '#fff',
+            color: COLORS.danger, fontSize: FONT.lg, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit', marginTop: SPACE.lg,
+          }}>
+            ログアウト
+          </button>
+        )}
+
         {/* アプリ情報 */}
         <div style={{
           textAlign: 'center',
@@ -2767,13 +3433,20 @@ function SettingsTab() {
 // ============================================================
 // App
 // ============================================================
+const PROTECTED_TABS = ['share', 'recipe', 'settings'];
+
 function App() {
+  const { loading, authScreen, setAuthScreen, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
 
   const handleTabChange = useCallback((newTab) => {
     if (newTab === activeTab || isTransitioning) return;
+    if (PROTECTED_TABS.includes(newTab) && !isAuthenticated) {
+      setAuthScreen('login');
+      return;
+    }
     setIsTransitioning(true);
     setTimeout(() => {
       setActiveTab(newTab);
@@ -2783,7 +3456,23 @@ function App() {
         setIsTransitioning(false);
       });
     }, 150);
-  }, [activeTab, isTransitioning]);
+  }, [activeTab, isTransitioning, isAuthenticated, setAuthScreen]);
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.app, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 64, marginBottom: SPACE.md, animation: 'loadingPulse 1.5s infinite' }}>🍙</div>
+          <div style={{ fontSize: FONT.base, color: COLORS.textLight }}>読み込み中...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authScreen === 'login') return <LoginScreen />;
+  if (authScreen === 'signup') return <SignupScreen />;
+  if (authScreen === 'reset') return <ResetPasswordScreen />;
+  if (authScreen === 'onboarding') return <OnboardingScreen />;
 
   const renderTab = () => {
     const tab = isTransitioning ? displayedTab : activeTab;
@@ -2812,18 +3501,26 @@ function App() {
 
         {/* タブバー */}
         <nav style={styles.tabBar}>
-          {TABS.map((tab) => (
-            <button
-              className="tab-btn"
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={styles.tabItem(activeTab === tab.id)}
-            >
-              <span style={styles.tabIcon(activeTab === tab.id)}>{tab.icon}</span>
-              <span>{tab.label}</span>
-              {activeTab === tab.id && <div style={styles.tabIndicator} />}
-            </button>
-          ))}
+          {TABS.map((tab) => {
+            const isProtected = PROTECTED_TABS.includes(tab.id) && !isAuthenticated;
+            return (
+              <button
+                className="tab-btn"
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                style={styles.tabItem(activeTab === tab.id)}
+              >
+                <span style={styles.tabIcon(activeTab === tab.id)}>
+                  {tab.icon}
+                </span>
+                <span style={{ position: 'relative' }}>
+                  {tab.label}
+                  {isProtected && <span style={{ fontSize: 8, marginLeft: 2, verticalAlign: 'super' }}>🔒</span>}
+                </span>
+                {activeTab === tab.id && <div style={styles.tabIndicator} />}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Paywallモーダル */}
@@ -2833,4 +3530,12 @@ function App() {
   );
 }
 
-export default App;
+function AppRoot() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
+
+export default AppRoot;
