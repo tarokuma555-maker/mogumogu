@@ -669,7 +669,7 @@ const AD_BANNERS = [
 ];
 
 function getAd(index) {
-  return AD_BANNERS[index % AD_BANNERS.length];
+  return AD_BANNERS[Math.floor(index) % AD_BANNERS.length];
 }
 
 // ---------- スタイル ----------
@@ -784,7 +784,7 @@ function Header({ title, subtitle }) {
 function BannerAd({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  if (isPremium || dismissed) return null;
+  if (isPremium || dismissed || !ad) return null;
   return (
     <div className="tap-scale" style={{
       background: '#fff', borderRadius: 18, border: `1px solid ${COLORS.border}`,
@@ -818,7 +818,7 @@ function BannerAd({ ad, style: extraStyle }) {
 function BannerAdLarge({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  if (isPremium || dismissed) return null;
+  if (isPremium || dismissed || !ad) return null;
   return (
     <div style={{
       background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
@@ -860,7 +860,7 @@ function BannerAdLarge({ ad, style: extraStyle }) {
 function ShortsAd({ ad }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  if (isPremium || dismissed) return null;
+  if (isPremium || dismissed || !ad) return null;
   return (
     <div style={{
       height: 'calc(100vh - 140px)', minHeight: 500,
@@ -1203,7 +1203,7 @@ function HomeTab() {
         {SHORTS_DATA.map((item, i) => (
           <React.Fragment key={item.id}>
             <ShortsCard item={item} isActive={i === currentIndex} />
-            {(i + 1) % 4 === 0 && <ShortsAd ad={getAd(i / 4)} />}
+            {(i + 1) % 4 === 0 && <ShortsAd ad={getAd(Math.floor(i / 4))} />}
           </React.Fragment>
         ))}
       </div>
