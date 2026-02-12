@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { supabase } from './lib/supabase';
 
 // ============================================================
@@ -906,116 +906,17 @@ const ALLERGENS = [
   { id: 'soy', name: '大豆', emoji: '🫘' },
 ];
 
-// ---------- 動画データ（自治体公式チャンネル） ----------
-const VIDEO_LIST = [
-  // [youtube_id, title, channel, stage, description]
-  // --- 京都市 ---
-  ['97BGy8M_Atk', '10倍がゆの作り方', '京都市公式', '初期', '離乳食の基本。お鍋でお米から作る10倍がゆのレシピ。'],
-  ['vVuIgxQM4FI', '野菜の煮つぶし', '京都市公式', '初期', '初めての野菜はこれ！にんじん・かぼちゃの煮つぶし。'],
-  ['0LmA6pDROow', '昆布とかつおの合わせだし', '京都市公式', '初期', '離乳食の味のベース。基本のだしの取り方。'],
-  ['5HgDx9G4U2E', 'にんじんの白和え風', '京都市公式', '中期', '7〜8ヶ月ごろに。にんじんと豆腐の白和え風。'],
-  ['YfBrgfJXdVQ', '魚のすり流し汁', '京都市公式', '中期', 'たんぱく質デビューに最適！魚の風味豊かなスープ。'],
-  ['lqHuSa1EEuI', '卵黄がゆ', '京都市公式', '中期', '卵の進め方。卵黄を使ったおかゆレシピ。'],
-  ['XiKXhPHMqW8', '鶏肉のとろとろ煮', '京都市公式', '後期', '9〜11ヶ月の赤ちゃんに。やわらかく煮込んだ鶏肉。'],
-  ['mMjU4YN9a2Y', '魚のホワイトソース煮', '京都市公式', '後期', 'クリーミーで食べやすい魚のホワイトソース煮。'],
-  ['Cu_TGPdICvw', '納豆汁', '京都市公式', '後期', '栄養満点の納豆を使ったあったかスープ。'],
-  ['nUgYCCKlSgo', 'りんごとさつまいもの重ね煮', '京都市公式', '完了期', '自然な甘さが大人気！おやつにもぴったり。'],
-  ['iP4xAoqseQA', 'ほうれん草の納豆和え', '京都市公式', '完了期', '鉄分たっぷり！ほうれん草と納豆の栄養コンビ。'],
-  // --- 国立市 ---
-  ['sA1jUySyUhQ', '10倍がゆ（鍋で作る方法）', '国立市公式', '初期', 'お鍋でじっくり作る基本の10倍がゆ。'],
-  ['JlzLkrEN-A8', '10倍がゆ（炊飯器で作る方法）', '国立市公式', '初期', '炊飯器で手軽に作れる10倍がゆ。'],
-  ['AD_TAyTwAbQ', '10倍がゆ（ごはんから作る方法）', '国立市公式', '初期', '余ったごはんから簡単に作れる10倍がゆ。'],
-  ['YF3Qz-b1QzQ', 'にんじんのペースト', '国立市公式', '初期', 'なめらかなにんじんペーストの作り方。'],
-  ['ap7xfsbv2HQ', 'じゃがいものペースト', '国立市公式', '初期', 'ホクホクじゃがいものなめらかペースト。'],
-  ['bX3JZ5LzkeQ', 'ほうれん草のペースト', '国立市公式', '初期', '鉄分豊富なほうれん草のペースト。葉先だけ使用。'],
-  ['LPzXYGWt10I', 'かぼちゃのペースト（電子レンジ）', '国立市公式', '初期', 'レンジで簡単！甘いかぼちゃペースト。'],
-  ['hojBzrDaGzQ', '豆腐のペースト', '国立市公式', '初期', '初めてのたんぱく質に最適な豆腐ペースト。'],
-  ['w5GsKxJc2gU', '白身魚のペースト', '国立市公式', '初期', 'やさしい味わいの白身魚ペースト。'],
-  ['nhyWbgj13n8', 'ゆで卵の卵黄ペースト', '国立市公式', '初期', 'アレルギーに注意しながら進める卵黄。'],
-  ['q_k6Qo3hhkI', '昆布だしの取り方', '国立市公式', '初期', '離乳食に欠かせない昆布だしの基本。'],
-  ['UF_dhSxm9zY', '合わせだし（かつお・昆布）', '国立市公式', '初期', 'かつおと昆布の風味豊かな合わせだし。'],
-  ['oRORtImNR4c', '7倍がゆの作り方', '国立市公式', '中期', 'モグモグ期に進める7倍がゆ。'],
-  ['ZMmq2h_oDj4', '5倍がゆの作り方', '国立市公式', '中期', 'カミカミ期に向けた5倍がゆ。'],
-  ['-rqTPYBcejU', 'じゃがいもと人参の煮つぶし', '国立市公式', '中期', '粒を残した煮つぶしで食感の練習。'],
-  ['V5tGUofGhoY', '豆腐とにんじんのとろとろ', '国立市公式', '中期', '豆腐のやさしい口当たりとにんじんの甘み。'],
-  ['QNM2wvUPbIY', '白身魚とかぼちゃのサラダ', '国立市公式', '中期', '彩りきれいな魚とかぼちゃの組み合わせ。'],
-  ['3-snX32-vH4', '卵がゆ（電子レンジ）', '国立市公式', '中期', 'レンジで手軽に作れる卵入りおかゆ。'],
-  ['95yQob2GXzM', '軟飯の作り方', '国立市公式', '後期', 'カミカミ期〜完了期に使う軟飯の基本。'],
-  ['wVQwzQhdGL8', '豆腐ハンバーグ', '国立市公式', '後期', '手づかみ食べの練習にぴったりなふわふわハンバーグ。'],
-  ['LAqaf6xoSO4', 'そうめんチャンプルー', '国立市公式', '後期', '手づかみしやすいそうめんのアレンジ。'],
-  ['5FLlp8fSzBw', 'フレンチトースト', '国立市公式', '後期', 'ふわふわ甘いフレンチトースト。おやつにも。'],
-  ['e_4-Ww97YKE', '鮭のみそミルク煮', '国立市公式', '後期', '味噌とミルクのやさしい味で鮭が食べやすく。'],
-  // --- 会津若松市 ---
-  ['7VhTZjUSt-8', '10倍がゆ（ごはんと炊く方法）', '会津若松市公式', '初期', 'ごはんと一緒に炊飯器で作るお手軽方法。'],
-  ['pH2P0OCo7qg', '10倍がゆ（ごはんから煮る方法）', '会津若松市公式', '初期', 'ごはんから鍋で煮て作る方法。'],
-  ['YCBTDHuv2uI', '野菜だしの作り方', '会津若松市公式', '初期', '野菜の旨みたっぷりのやさしいだし。'],
-  ['WJUftHK-KLs', 'ほうれん草のペースト', '会津若松市公式', '初期', '初期向けのなめらかほうれん草。'],
-  ['EQRbCZp4rv8', '卵黄のペースト', '会津若松市公式', '初期', '卵の始め方。ゆで卵の卵黄から。'],
-  ['ROm2p87wrbY', '7倍がゆ（炊飯器）', '会津若松市公式', '中期', '炊飯器でまとめて炊く7倍がゆ。'],
-  ['_CzfJczO_HM', 'パンがゆの作り方', '会津若松市公式', '中期', '食パンで作るやわらかパンがゆ。'],
-  ['xRKCLuyFyxA', 'ほうれん草（中期向け）', '会津若松市公式', '中期', '中期に合わせた粒の大きさのほうれん草。'],
-  ['IMg56cTxNEc', '味噌汁から取り分ける離乳食', '会津若松市公式', '中期', '大人の味噌汁から取り分けて簡単調理。'],
-  ['QJk8wbvNHpQ', '5倍がゆ（電子レンジ）', '会津若松市公式', '後期', 'レンジで手軽に作れる5倍がゆ。'],
-  ['kmOMUJ6S6Jo', 'フレンチトーストの作り方', '会津若松市公式', '後期', '手づかみ食べにぴったりのフレンチトースト。'],
-  ['l4XrTjXg8vs', 'オムレツ（電子レンジ）', '会津若松市公式', '後期', 'レンジで簡単ふわふわオムレツ。'],
-  ['6rFEFjYIPK4', '後期用の魚の作り方', '会津若松市公式', '後期', '後期に合わせた魚の調理方法。'],
-  // --- 東大阪市 ---
-  ['54ZMcxg_Beo', '離乳食のすすめ方（5〜6か月）', '東大阪市公式', '初期', 'ゴックン期の進め方を丁寧に解説。'],
-  ['EyyO6vPeYQc', '10倍がゆの作り方', '東大阪市公式', '初期', '東大阪市が教える基本の10倍がゆ。'],
-  ['dX9LRwQHZEM', '野菜のとろとろ煮', '東大阪市公式', '初期', 'やわらかく煮込んだ野菜のとろとろ煮。'],
-  ['AHrAX0CgQ6M', '離乳食のすすめ方（7〜8か月）', '東大阪市公式', '中期', 'モグモグ期の進め方とポイント。'],
-  ['xvEkpBEkos4', '魚のクリーム煮', '東大阪市公式', '中期', 'クリーミーで食べやすい魚料理。'],
-  ['moYcKcdfVO0', '離乳食のすすめ方（9〜11か月）', '東大阪市公式', '後期', 'カミカミ期の進め方と手づかみ食べ。'],
-  ['ds66WoD6SQs', 'やわらかハンバーグ', '東大阪市公式', '後期', '赤ちゃんでも食べやすいやわらかハンバーグ。'],
-  // --- 日野市 ---
-  ['tTCHE5oza3o', '離乳食の進め方（5〜6か月）', '日野市公式', '初期', '離乳初期のスタートガイド。'],
-  ['WsJmNUW2opo', '離乳食の進め方（7〜8か月）', '日野市公式', '中期', '中期の食材の増やし方と調理法。'],
-  ['LC2ZyzmTCE8', '離乳食の進め方（9〜11か月）', '日野市公式', '後期', '後期の固さ・大きさの目安。'],
-  ['ufFKO1v8eXw', '離乳食の進め方（12〜18か月）', '日野市公式', '完了期', '完了期の食事バランスと進め方。'],
-  // --- 荒尾市 ---
-  ['iG3Xy_1Kev0', '離乳食のすすめかた〜5・6か月編〜', '荒尾市公式', '初期', '離乳食スタート前に知っておきたいポイント。'],
-  ['b2u0FBi-Z9Q', '離乳食の作り方〜10倍粥編〜', '荒尾市公式', '初期', '10倍粥を丁寧に解説。'],
-  ['yykd4_tBE9Q', '離乳食の作り方〜野菜編〜', '荒尾市公式', '初期', '野菜の下ごしらえとペーストの作り方。'],
-  ['hqLIiHswgsw', '離乳食の作り方〜たんぱく質編〜', '荒尾市公式', '初期', 'たんぱく質食材の進め方と調理法。'],
-  ['USQrJdNIm_U', '離乳食のすすめかた〜7・8か月編〜', '荒尾市公式', '中期', 'モグモグ期の食材と調理のポイント。'],
-  ['iX0_anJx9e8', '離乳食のすすめかた〜9か月〜完了期〜', '荒尾市公式', '完了期', '後期から完了期への移行ガイド。'],
+// ---------- フォールバック動画データ ----------
+const FALLBACK_VIDEOS = [
+  { id: 'demo-1', youtube_id: null, title: '🍚 10倍がゆの作り方', channel_name: '離乳食チャンネル', baby_month_stage: '初期', thumbnail_url: null, likes_count: 1200 },
+  { id: 'demo-2', youtube_id: null, title: '🥕 にんじんペーストが30秒で完成', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', thumbnail_url: null, likes_count: 890 },
+  { id: 'demo-3', youtube_id: null, title: '🎃 かぼちゃポタージュ', channel_name: 'ベビーフード研究所', baby_month_stage: '中期', thumbnail_url: null, likes_count: 1560 },
+  { id: 'demo-4', youtube_id: null, title: '🐟 しらすの塩抜き完全マニュアル', channel_name: 'りにゅう食ラボ', baby_month_stage: '初期', thumbnail_url: null, likes_count: 2030 },
+  { id: 'demo-5', youtube_id: null, title: '🥦 ブロッコリー×おかゆ 栄養MAX', channel_name: 'ママの時短キッチン', baby_month_stage: '中期', thumbnail_url: null, likes_count: 780 },
+  { id: 'demo-6', youtube_id: null, title: '✋ 手づかみ食べデビュー3選', channel_name: 'ベビーフード研究所', baby_month_stage: '後期', thumbnail_url: null, likes_count: 2450 },
+  { id: 'demo-7', youtube_id: null, title: '🧊 1週間分の冷凍ストック術', channel_name: 'ママの時短キッチン', baby_month_stage: '初期', thumbnail_url: null, likes_count: 3120 },
+  { id: 'demo-8', youtube_id: null, title: '🍳 ふわふわ豆腐ハンバーグ', channel_name: 'りにゅう食ラボ', baby_month_stage: '後期', thumbnail_url: null, likes_count: 1890 },
 ];
-
-const CARD_GRADIENTS = [
-  'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-  'linear-gradient(135deg, #E85D26 0%, #F4845F 100%)',
-  'linear-gradient(135deg, #F4A460 0%, #DEB887 100%)',
-  'linear-gradient(135deg, #2196F3 0%, #64B5F6 100%)',
-  'linear-gradient(135deg, #4CAF50 0%, #81C784 100%)',
-  'linear-gradient(135deg, #9C27B0 0%, #CE93D8 100%)',
-  'linear-gradient(135deg, #00BCD4 0%, #4DD0E1 100%)',
-  'linear-gradient(135deg, #795548 0%, #A1887F 100%)',
-  'linear-gradient(135deg, #FF5252 0%, #FF867F 100%)',
-  'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)',
-  'linear-gradient(135deg, #3F51B5 0%, #7986CB 100%)',
-  'linear-gradient(135deg, #607D8B 0%, #90A4AE 100%)',
-];
-
-const STAGE_HASHTAGS = {
-  '初期': ['#離乳食初期', '#ゴックン期', '#5ヶ月から'],
-  '中期': ['#離乳食中期', '#モグモグ期', '#7ヶ月から'],
-  '後期': ['#離乳食後期', '#カミカミ期', '#9ヶ月から'],
-  '完了期': ['#離乳食完了期', '#パクパク期', '#1歳から'],
-};
-
-const DEMO_SHORTS = VIDEO_LIST.map(([youtube_id, title, channel, stage, description], i) => ({
-  id: String(i + 1),
-  youtube_id,
-  title,
-  description,
-  channel,
-  avatar: '🏛️',
-  stage,
-  hashtags: STAGE_HASHTAGS[stage] || [],
-  gradient: CARD_GRADIENTS[i % CARD_GRADIENTS.length],
-  likes: 500 + ((i * 137 + 42) % 2500),
-  comments: 10 + ((i * 53 + 17) % 140),
-}));
 
 // ---------- リッチレシピデータベース ----------
 const FULL_RECIPES = [
@@ -1549,43 +1450,44 @@ function ShortsAd({ ad, cardHeight }) {
   );
 }
 
-// ---------- YouTube Shorts 風フルスクリーンUI ----------
-function ShortsActionButton({ icon, label, onClick, active }) {
-  return (
-    <button className="tap-light" onClick={onClick} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-      background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-      transition: 'transform 0.15s ease-out',
-    }}>
-      <div style={{
-        width: 48, height: 48, borderRadius: '50%',
-        background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 24, transition: 'transform 0.2s ease-out',
-        transform: active ? 'scale(1.15)' : 'scale(1)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-      }}>
-        {icon}
-      </div>
-      <span style={{
-        color: '#fff', fontSize: 11, fontWeight: 700,
-        textShadow: '0 1px 6px rgba(0,0,0,0.6)',
-      }}>{label}</span>
-    </button>
-  );
+// ---------- Supabase 動画取得 ----------
+const SHORTS_PAGE_SIZE = 20;
+
+async function fetchVideosPage(pageNum) {
+  try {
+    const { data } = await supabase
+      .from('videos')
+      .select('*')
+      .order('cached_at', { ascending: false })
+      .range(pageNum * SHORTS_PAGE_SIZE, (pageNum + 1) * SHORTS_PAGE_SIZE - 1);
+    return data || [];
+  } catch { return []; }
 }
 
-function ShortsCard({ item, cardHeight, isVisible, isActive }) {
+const STAGE_DISPLAY = {
+  '初期': '初期 5-6ヶ月', 'ゴックン期': '初期 5-6ヶ月',
+  '中期': '中期 7-8ヶ月', 'モグモグ期': '中期 7-8ヶ月',
+  '後期': '後期 9-11ヶ月', 'カミカミ期': '後期 9-11ヶ月',
+  '完了期': '完了期 12-18ヶ月', 'パクパク期': '完了期 12-18ヶ月',
+};
+
+function VideoCard({ item, cardHeight, isVisible, isActive }) {
+  // 3 states: 'thumbnail' | 'playing' | 'error'
+  const [playState, setPlayState] = useState('thumbnail');
+  const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [likeAnim, setLikeAnim] = useState(false);
+  const playTimerRef = useRef(null);
 
   const videoId = item.youtube_id;
-  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
-  // 通常動画用の embed URL（autoplay + mute でモバイル自動再生対応）
+  const thumbnailUrl = item.thumbnail_url
+    || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null);
+
+  // Shorts 用 embed URL
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0&modestbranding=1`
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&playsinline=1&controls=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1`
     : null;
 
   const formatCount = (n) => {
@@ -1594,7 +1496,18 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
     return String(n);
   };
 
-  // ダブルタップでいいね（動画エリア外のタップ検知用）
+  // isActive になったら 0.5s 後に再生開始
+  useEffect(() => {
+    if (isActive && videoId) {
+      playTimerRef.current = setTimeout(() => setPlayState('playing'), 500);
+    } else {
+      if (playTimerRef.current) clearTimeout(playTimerRef.current);
+      setPlayState('thumbnail');
+    }
+    return () => { if (playTimerRef.current) clearTimeout(playTimerRef.current); };
+  }, [isActive, videoId]);
+
+  // ダブルタップでいいね
   const lastTapRef = useRef(0);
   const handleDoubleTap = () => {
     const now = Date.now();
@@ -1608,186 +1521,241 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
     lastTapRef.current = now;
   };
 
-  // シェア機能
+  // シェア
   const handleShare = async (e) => {
     e.stopPropagation();
     const url = videoId
-      ? `https://www.youtube.com/watch?v=${videoId}`
+      ? `https://www.youtube.com/shorts/${videoId}`
       : `https://www.youtube.com/results?search_query=${encodeURIComponent(item.title)}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: item.title, text: item.description || item.title, url });
       } else {
         await navigator.clipboard.writeText(url);
-        alert('リンクをコピーしました');
       }
-    } catch { /* ユーザーがキャンセル */ }
+    } catch { /* cancelled */ }
   };
 
-  // コメント → YouTube動画ページを開く
+  // コメント → YouTube
   const handleComment = (e) => {
     e.stopPropagation();
-    if (videoId) window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+    if (videoId) window.open(`https://www.youtube.com/shorts/${videoId}`, '_blank');
   };
 
-  // 画面外のカードは空divでパフォーマンス最適化
+  // YouTube で開く
+  const handleOpenYT = (e) => {
+    e.stopPropagation();
+    if (videoId) window.open(`https://www.youtube.com/shorts/${videoId}`, '_blank');
+  };
+
+  // 画面外のカードは空 div
   if (!isVisible) {
     return <div style={{ height: cardHeight, scrollSnapAlign: 'start', flexShrink: 0, background: '#000' }} />;
   }
 
-  const stageLabel = item.stage || item.baby_month_stage;
-  const stageEmoji = (stageLabel === '初期' || stageLabel === 'ゴックン期') ? '🍼'
-    : (stageLabel === '中期' || stageLabel === 'モグモグ期') ? '🥄'
-    : (stageLabel === '後期' || stageLabel === 'カミカミ期') ? '🦷' : '🍽️';
+  const channelName = item.channel_name || item.channel || '';
+  const stageLabel = item.baby_month_stage || item.stage;
+  const displayStage = STAGE_DISPLAY[stageLabel] || stageLabel;
+  const likesNum = item.likes_count || item.likes || 0;
+
+  // アクションボタン共通
+  const ActionBtn = ({ icon, label, onClick, active }) => (
+    <button
+      className="tap-light"
+      onClick={onClick}
+      style={{
+        background: 'none', border: 'none', cursor: 'pointer',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        padding: 0,
+      }}
+    >
+      <span style={{
+        fontSize: 28, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+        transform: active ? 'scale(1.15)' : 'scale(1)',
+        transition: 'transform 0.2s ease-out',
+      }}>{icon}</span>
+      <span style={{
+        color: '#fff', fontSize: 11, fontWeight: 700,
+        textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+      }}>{label}</span>
+    </button>
+  );
 
   return (
     <div
       onClick={handleDoubleTap}
       style={{
-        height: cardHeight,
-        minHeight: 500,
-        background: '#000',
-        position: 'relative',
-        overflow: 'hidden',
-        scrollSnapAlign: 'start',
-        flexShrink: 0,
+        height: cardHeight, minHeight: 500,
+        background: '#000', position: 'relative',
+        overflow: 'hidden', scrollSnapAlign: 'start', flexShrink: 0,
       }}
     >
-      {/* === 背景グラデーション === */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-        opacity: 0.6,
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 1,
-        background: 'rgba(0,0,0,0.3)',
-        pointerEvents: 'none',
-      }} />
+      {/* === サムネイル背景（常に表示） === */}
+      {thumbnailUrl && (
+        <img
+          src={thumbnailUrl} alt=""
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%', objectFit: 'cover',
+            filter: playState === 'playing' ? 'none' : 'brightness(0.7)',
+            transition: 'filter 0.3s',
+          }}
+        />
+      )}
+
+      {/* youtube_id が null の場合のグラデーション背景 */}
+      {!videoId && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFB347 100%)',
+          opacity: 0.85,
+        }} />
+      )}
 
       {/* ダブルタップいいねアニメーション */}
       {likeAnim && (
         <div style={{
-          position: 'absolute', top: '35%', left: '50%',
+          position: 'absolute', top: '40%', left: '50%',
           transform: 'translate(-50%, -50%)', zIndex: 50,
           fontSize: 80, animation: 'heartPop 0.6s ease-out forwards',
           pointerEvents: 'none', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))',
         }}>❤️</div>
       )}
 
-      {/* ステージバッジ */}
-      {stageLabel && (
+      {/* === YouTube iframe（playing 状態のみ） === */}
+      {playState === 'playing' && embedUrl && (
+        <iframe
+          key={`${videoId}-${muted}`}
+          src={embedUrl}
+          title={item.title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onError={() => setPlayState('error')}
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            border: 'none', zIndex: 5,
+          }}
+        />
+      )}
+
+      {/* === エラー状態 === */}
+      {playState === 'error' && (
         <div style={{
-          position: 'absolute', top: 54, left: 16, zIndex: 30,
-          background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)',
-          borderRadius: 20, padding: '5px 14px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+          position: 'absolute', inset: 0, zIndex: 6,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.6)',
         }}>
-          {stageEmoji} {stageLabel}
+          <span style={{ fontSize: 48, marginBottom: 12 }}>⚠️</span>
+          <span style={{ color: '#fff', fontSize: FONT.base, fontWeight: 700 }}>
+            再生できません
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setPlayState('thumbnail'); }}
+            style={{
+              marginTop: 12, background: 'rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20,
+              padding: '8px 24px', color: '#fff', fontSize: FONT.sm,
+              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            リトライ
+          </button>
         </div>
       )}
 
-      {/* === 動画プレーヤー（中央配置、16:9） === */}
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: 12, right: 12,
-        transform: 'translateY(-60%)',
-        zIndex: 10,
-      }}>
+      {/* === youtube_id null の場合の中央タイトル表示 === */}
+      {!videoId && (
         <div style={{
-          width: '100%',
-          aspectRatio: '16/9',
-          borderRadius: 14,
-          overflow: 'hidden',
-          background: '#000',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
-          position: 'relative',
+          position: 'absolute', inset: 0, zIndex: 6,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '0 32px',
         }}>
-          {/* サムネイル（iframe ロード前のフォールバック） */}
-          {thumbnailUrl && (
-            <img
-              src={thumbnailUrl}
-              alt=""
-              style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          )}
-          {/* YouTube iframe（アクティブなカードのみ読み込み） */}
-          {isActive && embedUrl && (
-            <iframe
-              key={videoId}
-              src={embedUrl}
-              title={item.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                border: 'none', zIndex: 2,
-              }}
-            />
-          )}
+          <span style={{ fontSize: 56, marginBottom: 16 }}>
+            {item.title.match(/^(.)/) ? item.title.match(/[\p{Emoji_Presentation}]/u)?.[0] || '🍴' : '🍴'}
+          </span>
+          <span style={{
+            color: '#fff', fontSize: 22, fontWeight: 900,
+            textAlign: 'center', textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            lineHeight: 1.5,
+          }}>{item.title}</span>
         </div>
-      </div>
+      )}
+
+      {/* === ミュートトグル === */}
+      {playState === 'playing' && videoId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
+          style={{
+            position: 'absolute', top: 56, right: 16, zIndex: 30,
+            background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
+            border: 'none', borderRadius: '50%',
+            width: 36, height: 36,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 18,
+          }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+      )}
+
+      {/* === ステージバッジ === */}
+      {displayStage && (
+        <div style={{
+          position: 'absolute', top: 56, left: 16, zIndex: 30,
+          background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)',
+          borderRadius: 20, padding: '5px 14px',
+          border: '1px solid rgba(255,255,255,0.15)',
+          fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+        }}>
+          {displayStage}
+        </div>
+      )}
 
       {/* === 右サイド アクションバー === */}
       <div style={{
-        position: 'absolute', right: 8, bottom: '16%',
-        display: 'flex', flexDirection: 'column', gap: 14,
+        position: 'absolute', right: 10, bottom: '18%',
+        display: 'flex', flexDirection: 'column', gap: 16,
         alignItems: 'center', zIndex: 20,
       }}>
         {/* チャンネルアバター */}
-        <div style={{ marginBottom: 6, position: 'relative' }}>
+        <div style={{ marginBottom: 4, position: 'relative' }}>
           <div style={{
-            width: 48, height: 48, borderRadius: '50%',
+            width: 46, height: 46, borderRadius: '50%',
             background: 'rgba(255,255,255,0.15)', border: '2px solid #fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+            fontSize: 20, color: '#fff', fontWeight: 700,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
           }}>
-            {item.avatar || (item.channel || '?')[0]}
+            {channelName[0] || '?'}
           </div>
           <div style={{
-            position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+            position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)',
             width: 20, height: 20, borderRadius: '50%',
             background: '#FF4757', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, color: '#fff', fontWeight: 900,
+            fontSize: 13, color: '#fff', fontWeight: 900,
           }}>+</div>
         </div>
 
-        {/* いいね */}
-        <ShortsActionButton
+        <ActionBtn
           icon={liked ? '❤️' : '🤍'}
-          label={formatCount(liked ? (item.likes || 0) + 1 : (item.likes || 0))}
+          label={formatCount(liked ? likesNum + 1 : likesNum)}
           onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
           active={liked}
         />
-
-        {/* コメント → YouTube動画ページ */}
-        <ShortsActionButton
-          icon="💬"
-          label={formatCount(item.comments || 0)}
-          onClick={handleComment}
-        />
-
-        {/* シェア → Web Share API / クリップボード */}
-        <ShortsActionButton
-          icon="↗️"
-          label="シェア"
-          onClick={handleShare}
-        />
-
-        {/* 保存 */}
-        <ShortsActionButton
+        <ActionBtn icon="💬" label="コメント" onClick={handleComment} />
+        <ActionBtn icon="↗️" label="シェア" onClick={handleShare} />
+        <ActionBtn
           icon={saved ? '🔖' : '📑'}
           label={saved ? '保存済' : '保存'}
           onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
           active={saved}
         />
+        {videoId && (
+          <ActionBtn icon="▶️" label="YouTube" onClick={handleOpenYT} />
+        )}
       </div>
 
       {/* === 下部情報オーバーレイ === */}
@@ -1796,22 +1764,14 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
         background: 'linear-gradient(transparent, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.75))',
         padding: `60px ${SPACE.lg}px ${SPACE.xl}px`,
       }}>
-        {/* チャンネル名 + フォロー */}
+        {/* チャンネル名 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <span style={{
             color: '#fff', fontWeight: 800, fontSize: FONT.base,
             textShadow: '0 1px 6px rgba(0,0,0,0.4)',
           }}>
-            @{(item.channel || '').replace(/\s/g, '')}
+            @{channelName.replace(/\s/g, '')}
           </span>
-          <button style={{
-            background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6,
-            padding: '3px 12px', color: '#fff', fontSize: FONT.xs,
-            fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>
-            フォロー
-          </button>
         </div>
 
         {/* タイトル */}
@@ -1825,7 +1785,7 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           {item.title}
         </div>
 
-        {/* 説明文（タップで展開） */}
+        {/* 説明文 */}
         {item.description && (
           <div
             onClick={(e) => { e.stopPropagation(); setDescExpanded(!descExpanded); }}
@@ -1843,18 +1803,15 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           </div>
         )}
 
-        {/* ハッシュタグ */}
-        {(item.hashtags || item.tags)?.length > 0 && (
-          <div style={{
-            display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2,
-            WebkitOverflowScrolling: 'touch',
-          }}>
-            {(item.hashtags || item.tags).map((tag) => (
+        {/* タグ */}
+        {(item.tags || []).length > 0 && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+            {item.tags.map((tag) => (
               <span key={tag} style={{
                 color: 'rgba(255,255,255,0.85)',
                 fontSize: FONT.sm, fontWeight: 600, whiteSpace: 'nowrap',
               }}>
-                {tag.startsWith('#') ? tag : `#${tag}`}
+                #{tag}
               </span>
             ))}
           </div>
@@ -1867,12 +1824,17 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
 // ---------- ホームタブ ----------
 function HomeTab() {
   const containerRef = useRef(null);
+  const [videos, setVideos] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [videos] = useState(DEMO_SHORTS);
   const [feedTab, setFeedTab] = useState('recommend');
   const [cardHeight, setCardHeight] = useState(window.innerHeight - 70);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimerRef = useRef(null);
+  const loadingRef = useRef(false);
+  const observerRef = useRef(null);
 
   // iOS Safari 対応: window.innerHeight でカード高さ計算
   useEffect(() => {
@@ -1881,17 +1843,80 @@ function HomeTab() {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // スクロール監視（ease-outで滑らかに）
+  // 初回ロード: Supabase から動画取得、なければフォールバック
+  useEffect(() => {
+    let cancelled = false;
+    async function loadInitial() {
+      setLoading(true);
+      const data = await fetchVideosPage(0);
+      if (cancelled) return;
+      if (data.length > 0) {
+        setVideos(data);
+        setPage(1);
+        setHasMore(data.length >= SHORTS_PAGE_SIZE);
+      } else {
+        setVideos(FALLBACK_VIDEOS);
+        setHasMore(false);
+      }
+      setLoading(false);
+    }
+    loadInitial();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 追加ページ読み込み
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    const data = await fetchVideosPage(page);
+    if (data.length > 0) {
+      setVideos(prev => [...prev, ...data]);
+      setPage(prev => prev + 1);
+      if (data.length < SHORTS_PAGE_SIZE) setHasMore(false);
+    } else {
+      setHasMore(false);
+    }
+    loadingRef.current = false;
+  }, [page, hasMore]);
+
+  // IntersectionObserver でアクティブカード検出
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.dataset.index, 10);
+            if (!isNaN(idx)) setCurrentIndex(idx);
+          }
+        }
+      },
+      { root: container, threshold: 0.7 }
+    );
+
+    const cards = container.querySelectorAll('[data-index]');
+    cards.forEach(card => observerRef.current.observe(card));
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [videos, loading]);
+
+  // スクロール監視 + 末端で追加読み込み
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     setIsScrolling(true);
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 200);
 
-    const scrollTop = containerRef.current.scrollTop;
-    const idx = Math.round(scrollTop / cardHeight);
-    setCurrentIndex(idx);
-  }, [cardHeight]);
+    // 末端近くで追加読み込み
+    const el = containerRef.current;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - cardHeight * 2) {
+      loadMore();
+    }
+  }, [cardHeight, loadMore]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1902,14 +1927,35 @@ function HomeTab() {
   }, [handleScroll]);
 
   // 広告挿入した表示リスト構築
-  const displayItems = [];
-  const sourceItems = videos.length > 0 ? videos : DEMO_SHORTS;
-  sourceItems.forEach((item, i) => {
-    displayItems.push({ type: 'video', data: item });
-    if ((i + 1) % 4 === 0) {
-      displayItems.push({ type: 'ad', data: getAd(Math.floor(i / 4)) });
-    }
-  });
+  const displayItems = useMemo(() => {
+    const items = [];
+    videos.forEach((item, i) => {
+      items.push({ type: 'video', data: item });
+      if ((i + 1) % 4 === 0) {
+        items.push({ type: 'ad', data: getAd(Math.floor(i / 4)) });
+      }
+    });
+    return items;
+  }, [videos]);
+
+  // ローディング画面
+  if (loading) {
+    return (
+      <div style={{
+        height: cardHeight, background: '#000',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          fontSize: 48, animation: 'loadingPulse 1.2s ease-in-out infinite',
+        }}>🍼</div>
+        <div style={{
+          color: 'rgba(255,255,255,0.6)', fontSize: FONT.sm,
+          fontWeight: 600, marginTop: 16,
+        }}>動画を読み込み中...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'relative', height: cardHeight, background: '#000' }}>
@@ -1930,7 +1976,7 @@ function HomeTab() {
             textShadow: '0 2px 12px rgba(0,0,0,0.4)',
             letterSpacing: -0.5,
           }}>
-            MoguMogu
+            🍼 MoguMogu
           </span>
         </div>
 
@@ -1957,15 +2003,14 @@ function HomeTab() {
           ))}
         </div>
 
-        {/* 右: 検索 */}
+        {/* 右: 通知 */}
         <div style={{ pointerEvents: 'auto' }}>
-          <button style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 20, padding: 4, color: '#fff',
+          <span style={{
+            fontSize: 20, color: '#fff',
             textShadow: '0 1px 6px rgba(0,0,0,0.4)',
           }}>
-            🔍
-          </button>
+            🔔
+          </span>
         </div>
       </div>
 
@@ -1981,9 +2026,9 @@ function HomeTab() {
         }}
       >
         {displayItems.map((entry, i) => (
-          <React.Fragment key={`${entry.type}-${entry.data?.id || i}`}>
+          <div key={`${entry.type}-${entry.data?.id || entry.data?.youtube_id || i}`} data-index={i}>
             {entry.type === 'video' ? (
-              <ShortsCard
+              <VideoCard
                 item={entry.data}
                 cardHeight={cardHeight}
                 isVisible={Math.abs(i - currentIndex) <= 2}
@@ -1992,8 +2037,19 @@ function HomeTab() {
             ) : (
               <ShortsAd ad={entry.data} cardHeight={cardHeight} />
             )}
-          </React.Fragment>
+          </div>
         ))}
+
+        {/* 追加読み込み中インジケーター */}
+        {hasMore && (
+          <div style={{
+            height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              color: 'rgba(255,255,255,0.5)', fontSize: FONT.sm, fontWeight: 600,
+            }}>読み込み中...</div>
+          </div>
+        )}
       </div>
     </div>
   );
