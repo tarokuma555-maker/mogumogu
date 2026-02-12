@@ -1583,19 +1583,30 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [muted, setMuted] = useState(true);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const prevActiveRef = useRef(false);
+  const [showIframe, setShowIframe] = useState(false);
+  const loadTimerRef = useRef(null);
 
   const videoId = item.youtube_id;
 
-  // isActive が変わったら iframeLoaded をリセット
+  // アクティブになったらiframeを表示、非アクティブなら破棄
   useEffect(() => {
-    if (isActive && !prevActiveRef.current) {
+    if (isActive && videoId) {
+      setIframeLoaded(false);
+      setShowIframe(true);
+      // 3秒経っても読み込み完了しなければ強制的に完了扱い
+      loadTimerRef.current = setTimeout(() => setIframeLoaded(true), 3000);
+    } else {
+      setShowIframe(false);
       setIframeLoaded(false);
     }
-    prevActiveRef.current = isActive;
-  }, [isActive]);
+    return () => { if (loadTimerRef.current) clearTimeout(loadTimerRef.current); };
+  }, [isActive, videoId]);
+
+  const handleIframeLoad = () => {
+    setIframeLoaded(true);
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+  };
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1608,9 +1619,9 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
     return <div style={{ height: cardHeight, scrollSnapAlign: 'start', flexShrink: 0, background: '#000' }} />;
   }
 
-  // YouTube embed URL: アクティブカードのみ autoplay=1
+  // YouTube embed URL: autoplay=1, mute=1, controls=1（ユーザー操作可能に）
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=${isActive ? 1 : 0}&mute=${muted ? 1 : 0}&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&showinfo=0&iv_load_policy=3&fs=0&enablejsapi=1`
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&iv_load_policy=3`
     : null;
 
   const stageLabel = item.stage || item.baby_month_stage;
@@ -1644,24 +1655,25 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           <div style={{ position: 'absolute', top: '55%', left: '30%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
         </div>
 
-        {/* YouTube iframe */}
-        {videoId && isActive && (
+        {/* YouTube iframe — アクティブ時のみ表示、ユーザー操作可能 */}
+        {videoId && showIframe && (
           <iframe
-            key={`${videoId}-${muted}`}
+            key={videoId}
             src={embedUrl}
             title={item.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            onLoad={() => setIframeLoaded(true)}
+            allowFullScreen
+            onLoad={handleIframeLoad}
             style={{
               position: 'absolute', inset: 0,
               width: '100%', height: '100%', border: 'none',
-              zIndex: 1, pointerEvents: 'none',
+              zIndex: 2,
             }}
           />
         )}
 
-        {/* ローディング（スケルトン風パルス） */}
-        {videoId && isActive && !iframeLoaded && (
+        {/* ローディング（スケルトン風パルス）— 3秒タイムアウト付き */}
+        {videoId && showIframe && !iframeLoaded && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 2,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1680,25 +1692,6 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
       </div>
 
       {/* === UIオーバーレイ === */}
-
-      {/* ミュートボタン */}
-      {videoId && isActive && iframeLoaded && (
-        <button
-          onClick={() => setMuted(m => !m)}
-          style={{
-            position: 'absolute', top: 52, right: 16, zIndex: 30,
-            width: 38, height: 38, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, color: '#fff',
-            transition: 'transform 0.2s ease-out, background 0.2s',
-          }}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
-      )}
 
       {/* ステージバッジ */}
       {stageLabel && (
@@ -1924,7 +1917,7 @@ function HomeTab() {
   });
 
   return (
-    <div style={{ position: 'relative', height: cardHeight, overflow: 'hidden', background: '#000' }}>
+    <div style={{ position: 'relative', height: cardHeight, background: '#000' }}>
       {/* トップバーオーバーレイ */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100,
@@ -1986,11 +1979,10 @@ function HomeTab() {
         ref={containerRef}
         style={{
           height: cardHeight,
-          overflowY: 'scroll',
+          overflowY: 'auto',
           overflowX: 'hidden',
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
-          scrollBehavior: 'smooth',
         }}
       >
         {displayItems.map((entry, i) => (
