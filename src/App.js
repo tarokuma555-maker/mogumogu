@@ -1523,16 +1523,114 @@ function ShortsAd({ ad }) {
 }
 
 // ---------- ShortsCard ----------
+function YouTubePlayer({ videoId, isActive, muted, onToggleMute }) {
+  const playerRef = useRef(null);
+  const containerRef = useRef(null);
+  const playerInstanceRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoId || !containerRef.current) return;
+
+    const initPlayer = () => {
+      if (playerInstanceRef.current) {
+        playerInstanceRef.current.destroy();
+      }
+      playerInstanceRef.current = new window.YT.Player(playerRef.current, {
+        videoId,
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          showinfo: 0,
+          loop: 1,
+          playlist: videoId,
+          playsinline: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (e) => {
+            e.target.mute();
+            if (isActive) e.target.playVideo();
+          },
+        },
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prev) prev();
+        initPlayer();
+      };
+    }
+
+    return () => {
+      if (playerInstanceRef.current) {
+        try { playerInstanceRef.current.destroy(); } catch {}
+        playerInstanceRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId]);
+
+  useEffect(() => {
+    const p = playerInstanceRef.current;
+    if (!p || typeof p.playVideo !== 'function') return;
+    try {
+      if (isActive) { p.playVideo(); } else { p.pauseVideo(); }
+    } catch {}
+  }, [isActive]);
+
+  useEffect(() => {
+    const p = playerInstanceRef.current;
+    if (!p || typeof p.mute !== 'function') return;
+    try {
+      if (muted) { p.mute(); } else { p.unMute(); }
+    } catch {}
+  }, [muted]);
+
+  return (
+    <div ref={containerRef} onClick={onToggleMute} style={{
+      position: 'absolute', inset: 0, background: '#000', cursor: 'pointer',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: '50%', left: '50%',
+        width: '100%',
+        height: 0,
+        paddingBottom: '177.78%',
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+      }}>
+        <div ref={playerRef} style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function ShortsCard({ item, isActive }) {
   const [liked, setLiked] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
+  const [muted, setMuted] = useState(true);
+
+  const stageLabelMap = {
+    'ゴックン期': '🍼', 'モグモグ期': '🥄', 'カミカミ期': '🦷', 'パクパク期': '🍽️',
+  };
+  const stageEmoji = stageLabelMap[item.baby_month_stage] || '🍴';
 
   return (
     <div style={{
       height: 'calc(100vh - 140px)',
       minHeight: 500,
-      background: `linear-gradient(160deg, ${item.gradientFrom}, ${item.gradientTo})`,
-      borderRadius: 0,
+      background: '#000',
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
@@ -1541,188 +1639,104 @@ function ShortsCard({ item, isActive }) {
       scrollSnapAlign: 'start',
       flexShrink: 0,
     }}>
-      {/* 背景の絵文字 */}
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -60%)',
-        fontSize: 140,
-        opacity: 0.2,
-        filter: 'blur(2px)',
-        pointerEvents: 'none',
-      }}>
-        {item.thumbnail}
-      </div>
+      {/* YouTube動画 */}
+      {item.youtube_id && (
+        <YouTubePlayer
+          videoId={item.youtube_id}
+          isActive={isActive}
+          muted={muted}
+          onToggleMute={() => setMuted(m => !m)}
+        />
+      )}
 
-      {/* 中央コンテンツ */}
-      <div style={{
-        position: 'absolute',
-        top: '30%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center',
-        color: '#fff',
-        zIndex: 2,
-      }}>
-        <div style={{ fontSize: 80, marginBottom: 8 }}>{item.thumbnail}</div>
+      {/* ミュートインジケーター */}
+      {muted && isActive && (
         <div style={{
-          fontSize: FONT.sm,
-          background: 'rgba(255,255,255,0.25)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: 20,
-          padding: `${SPACE.xs}px ${SPACE.md}px`,
-          display: 'inline-block',
-          fontWeight: 700,
+          position: 'absolute', top: 16, left: 16, zIndex: 20,
+          background: 'rgba(0,0,0,0.5)', borderRadius: 20,
+          padding: '4px 12px', fontSize: FONT.sm, color: '#fff',
+          fontWeight: 600, pointerEvents: 'none',
         }}>
-          {item.stageEmoji} {item.stage}
+          🔇 タップで音声ON
         </div>
-      </div>
+      )}
+
+      {/* ステージバッジ */}
+      {item.baby_month_stage && (
+        <div style={{
+          position: 'absolute', top: 16, right: 60, zIndex: 20,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+          borderRadius: 20, padding: `${SPACE.xs}px ${SPACE.md}px`,
+          fontSize: FONT.sm, color: '#fff', fontWeight: 700,
+        }}>
+          {stageEmoji} {item.baby_month_stage}
+        </div>
+      )}
 
       {/* 右側アクションバー */}
       <div style={{
-        position: 'absolute',
-        right: 14,
-        bottom: 180,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-        alignItems: 'center',
-        zIndex: 10,
+        position: 'absolute', right: 10, bottom: 160,
+        display: 'flex', flexDirection: 'column', gap: 18,
+        alignItems: 'center', zIndex: 10,
       }}>
         <ActionButton
           icon={liked ? '❤️' : '🤍'}
-          label={liked ? item.likes + 1 : item.likes}
-          onClick={() => setLiked(!liked)}
+          label={liked ? (item.likes_count || 0) + 1 : (item.likes_count || 0)}
+          onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
           active={liked}
         />
-        <ActionButton icon="💬" label={item.comments} />
-        <ActionButton icon="🔖" label="保存" />
-        <ActionButton icon="↗️" label="共有" />
+        <ActionButton icon="💬" label={0} onClick={(e) => e.stopPropagation()} />
+        <ActionButton icon="🔖" label="保存" onClick={(e) => e.stopPropagation()} />
+        <ActionButton icon="↗️" label="共有" onClick={(e) => e.stopPropagation()} />
       </div>
 
-      {/* 下部テキスト */}
+      {/* 下部テキストオーバーレイ */}
       <div style={{
         padding: `0 ${SPACE.lg}px ${SPACE.xl}px`,
-        background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
-        paddingTop: 60,
-        position: 'relative',
-        zIndex: 5,
+        background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+        paddingTop: 80,
+        position: 'relative', zIndex: 5,
+        pointerEvents: 'none',
       }}>
-        {/* 作者 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 10,
-        }}>
+        {/* チャンネル名 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, pointerEvents: 'auto' }}>
           <div style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
+            width: 32, height: 32, borderRadius: '50%',
             background: 'rgba(255,255,255,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20,
-            border: '2px solid rgba(255,255,255,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, border: '2px solid rgba(255,255,255,0.5)', color: '#fff', fontWeight: 700,
           }}>
-            {item.authorAvatar}
+            {(item.channel_name || '?')[0]}
           </div>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: FONT.base }}>{item.author}</span>
-          <button className="tap-scale" style={{
-            background: 'rgba(255,255,255,0.25)',
-            border: '1px solid rgba(255,255,255,0.4)',
-            borderRadius: 14,
-            color: '#fff',
-            padding: '8px 16px',
-            fontSize: FONT.sm,
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}>
-            フォロー
-          </button>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: FONT.base }}>
+            {item.channel_name || ''}
+          </span>
         </div>
 
-        <div style={{ color: '#fff', fontWeight: 900, fontSize: FONT.xl, marginBottom: 6 }}>
+        {/* タイトル */}
+        <div style={{ color: '#fff', fontWeight: 900, fontSize: FONT.lg, marginBottom: 4, lineHeight: 1.4 }}>
           {item.title}
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: FONT.base, lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: SPACE.sm }}>
-          {item.description}
-        </div>
+
+        {/* 説明文 */}
+        {item.description && (
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: FONT.sm, lineHeight: 1.5, marginBottom: SPACE.sm,
+            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}>
+            {item.description}
+          </div>
+        )}
 
         {/* タグ */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-          {item.tags.map((tag) => (
-            <span key={tag} style={{
-              background: 'rgba(255,255,255,0.2)',
-              color: '#fff',
-              padding: '2px 10px',
-              borderRadius: 12,
-              fontSize: FONT.sm,
-              fontWeight: 500,
-            }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        {/* レシピ手順 */}
-        <button
-          className="tap-scale"
-          onClick={() => setShowSteps(!showSteps)}
-          style={{
-            background: 'rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: 12,
-            color: '#fff',
-            padding: `${SPACE.sm}px ${SPACE.lg}px`,
-            fontSize: FONT.base,
-            fontWeight: 700,
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'left',
-            fontFamily: 'inherit',
-          }}
-        >
-          {showSteps ? '📖 手順を閉じる' : '📖 作り方を見る'}
-        </button>
-
-        {showSteps && (
-          <div style={{
-            marginTop: 8,
-            background: 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(8px)',
-            borderRadius: 12,
-            padding: 14,
-          }}>
-            {item.steps.map((step, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                gap: 8,
-                alignItems: 'flex-start',
-                marginBottom: i < item.steps.length - 1 ? 8 : 0,
-                color: '#fff',
-                fontSize: FONT.base,
+        {item.tags?.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {item.tags.map((tag) => (
+              <span key={tag} style={{
+                background: 'rgba(255,255,255,0.2)', color: '#fff',
+                padding: '2px 10px', borderRadius: 12, fontSize: FONT.sm, fontWeight: 500,
               }}>
-                <span style={{
-                  background: 'rgba(255,255,255,0.3)',
-                  borderRadius: '50%',
-                  width: 22,
-                  height: 22,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: FONT.sm,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}>
-                  {i + 1}
-                </span>
-                <span style={{ lineHeight: 1.5 }}>{step}</span>
-              </div>
+                #{tag}
+              </span>
             ))}
           </div>
         )}
@@ -1773,6 +1787,37 @@ function ActionButton({ icon, label, onClick, active }) {
 function HomeTab() {
   const containerRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [videos, setVideos] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(true);
+
+  // Supabase から動画データを取得
+  useEffect(() => {
+    const fetchVideos = async () => {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (data && !error) {
+        setVideos(data);
+      } else {
+        // フォールバック: SHORTS_DATA をマッピング
+        setVideos(SHORTS_DATA.map(s => ({
+          id: s.id,
+          youtube_id: null,
+          title: s.title,
+          description: s.description,
+          channel_name: s.author,
+          baby_month_stage: s.stage,
+          tags: s.tags.map(t => t.replace('#', '')),
+          likes_count: s.likes,
+          views_count: 0,
+        })));
+      }
+      setLoadingVideos(false);
+    };
+    fetchVideos();
+  }, []);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
@@ -1790,19 +1835,29 @@ function HomeTab() {
     }
   }, [handleScroll]);
 
+  // 読み込み中
+  if (loadingVideos) {
+    return (
+      <div style={{ height: 'calc(100vh - 80px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 48, animation: 'loadingPulse 1.5s infinite' }}>🎬</div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: FONT.sm, marginTop: SPACE.sm }}>動画を読み込み中...</div>
+        </div>
+      </div>
+    );
+  }
+
+  const displayItems = videos.length > 0 ? videos : SHORTS_DATA;
+
   return (
     <div style={{ position: 'relative' }}>
       {/* インジケーター */}
       <div style={{
         position: 'fixed',
-        top: 60,
-        right: 14,
-        zIndex: 200,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 5,
+        top: 60, right: 14, zIndex: 200,
+        display: 'flex', flexDirection: 'column', gap: 5,
       }}>
-        {SHORTS_DATA.map((_, i) => (
+        {displayItems.slice(0, 10).map((_, i) => (
           <div key={i} style={{
             width: 5,
             height: i === currentIndex ? 18 : 5,
@@ -1822,7 +1877,7 @@ function HomeTab() {
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        {SHORTS_DATA.map((item, i) => (
+        {displayItems.map((item, i) => (
           <React.Fragment key={item.id}>
             <ShortsCard item={item} isActive={i === currentIndex} />
             {(i + 1) % 4 === 0 && <ShortsAd ad={getAd(Math.floor(i / 4))} />}
@@ -1965,19 +2020,15 @@ function SearchTab() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [serverUsage, setServerUsage] = useState(null);
   const { isPremium, trySearch, searchCount } = usePremium();
+  const { user, isAuthenticated } = useAuth();
+  const searchTimerRef = useRef(null);
 
-  const handleSearch = (q) => {
-    setQuery(q);
-    if (q.trim() === '') {
-      setResults([]);
-      setHasSearched(false);
-      return;
-    }
-    if (!trySearch()) { setQuery(''); return; }
-    setHasSearched(true);
+  const doLocalSearch = (q) => {
     const keywords = q.split(/[\s　×x+＋]+/).filter(Boolean);
-    const filtered = FULL_RECIPES.filter((r) =>
+    return FULL_RECIPES.filter((r) =>
       keywords.every((kw) =>
         r.title.includes(kw) ||
         r.tags.some((t) => t.includes(kw)) ||
@@ -1985,7 +2036,71 @@ function SearchTab() {
         r.stage.includes(kw)
       )
     );
-    setResults(filtered);
+  };
+
+  const doAISearch = async (q) => {
+    const babyMonth = parseInt(localStorage.getItem('mogumogu_month')) || 6;
+    const allergens = JSON.parse(localStorage.getItem('mogumogu_allergens') || '[]');
+    const allergenNames = allergens.map(id => ALLERGENS.find(a => a.id === id)?.name).filter(Boolean);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { recipes: doLocalSearch(q), fromAI: false };
+
+    const ingredients = q.split(/[\s　×x+＋、,]+/).filter(Boolean);
+
+    const res = await fetch('/api/search-recipe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        ingredients,
+        baby_month: babyMonth,
+        allergens: allergenNames,
+        count: 5,
+      }),
+    });
+
+    if (res.status === 429) {
+      const body = await res.json();
+      setServerUsage(body);
+      return { recipes: doLocalSearch(q), fromAI: false, rateLimited: true };
+    }
+    if (!res.ok) return { recipes: doLocalSearch(q), fromAI: false };
+
+    const body = await res.json();
+    if (body.usage) setServerUsage(body.usage);
+    return { recipes: body.recipes || [], fromAI: true };
+  };
+
+  const handleSearch = (q) => {
+    setQuery(q);
+    if (q.trim() === '') {
+      setResults([]);
+      setHasSearched(false);
+      setIsSearching(false);
+      return;
+    }
+
+    // 未ログイン: ローカル検索のみ（PremiumProvider の制限を適用）
+    if (!isAuthenticated) {
+      if (!trySearch()) { setQuery(''); return; }
+      setHasSearched(true);
+      setResults(doLocalSearch(q));
+      return;
+    }
+
+    // ログイン済み: デバウンスしてAI検索
+    setHasSearched(true);
+    setIsSearching(true);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    // 即座にローカル結果を表示
+    setResults(doLocalSearch(q));
+    searchTimerRef.current = setTimeout(async () => {
+      const { recipes } = await doAISearch(q);
+      setResults(recipes);
+      setIsSearching(false);
+    }, 600);
   };
 
   const popularTags = [
@@ -2038,13 +2153,23 @@ function SearchTab() {
 
       {/* 残回数バッジ */}
       {!isPremium && (
-        <div style={{ padding: `${SPACE.sm}px ${SPACE.lg}px 0`, display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{
-            background: searchCount >= 3 ? '#FFF5F5' : COLORS.tagBg,
-            color: searchCount >= 3 ? COLORS.danger : COLORS.primaryDark,
-            fontSize: FONT.sm, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
-            border: `1px solid ${searchCount >= 3 ? COLORS.danger + '44' : COLORS.border}`,
-          }}>🔍 残り {Math.max(0, 3 - searchCount)}/3回（本日）</span>
+        <div style={{ padding: `${SPACE.sm}px ${SPACE.lg}px 0`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: SPACE.sm }}>
+          {isSearching && <span style={{ fontSize: FONT.xs, color: COLORS.primary, fontWeight: 600 }}>🤖 AI検索中...</span>}
+          {isAuthenticated && serverUsage ? (
+            <span style={{
+              background: serverUsage.used >= serverUsage.limit ? '#FFF5F5' : COLORS.tagBg,
+              color: serverUsage.used >= serverUsage.limit ? COLORS.danger : COLORS.primaryDark,
+              fontSize: FONT.sm, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
+              border: `1px solid ${serverUsage.used >= serverUsage.limit ? COLORS.danger + '44' : COLORS.border}`,
+            }}>🔍 残り {Math.max(0, serverUsage.limit - serverUsage.used)}/{serverUsage.limit}回（本日）</span>
+          ) : (
+            <span style={{
+              background: searchCount >= 3 ? '#FFF5F5' : COLORS.tagBg,
+              color: searchCount >= 3 ? COLORS.danger : COLORS.primaryDark,
+              fontSize: FONT.sm, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
+              border: `1px solid ${searchCount >= 3 ? COLORS.danger + '44' : COLORS.border}`,
+            }}>🔍 残り {Math.max(0, 3 - searchCount)}/3回（本日）</span>
+          )}
         </div>
       )}
 
@@ -2744,6 +2869,7 @@ function ShareTab() {
 // ---------- レシピタブ ----------
 function RecipeTab() {
   const { isPremium, tryRecipeGen, recipeGenCount } = usePremium();
+  const { isAuthenticated } = useAuth();
   const [babyMonth] = useState(() => {
     try { return parseInt(localStorage.getItem('mogumogu_month')) || 6; } catch { return 6; }
   });
@@ -2753,6 +2879,8 @@ function RecipeTab() {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [recipes, setRecipes] = useState([]);
+  const [genError, setGenError] = useState('');
+  const [serverUsage, setServerUsage] = useState(null);
 
   const currentStage = MONTH_STAGES.find((s) => s.months.includes(babyMonth)) || MONTH_STAGES[0];
 
@@ -2760,19 +2888,63 @@ function RecipeTab() {
     (id) => ALLERGENS.find((a) => a.id === id)
   ).filter(Boolean);
 
-  const handleGenerate = () => {
+  const doLocalGenerate = () => {
+    const stageRecipes = FULL_RECIPES.filter((r) => r.stage === currentStage.label);
+    return stageRecipes.filter(
+      (r) => !r.allergens.some((a) => selectedAllergens.includes(a))
+    );
+  };
+
+  const handleGenerate = async () => {
     if (!tryRecipeGen()) return;
     setGenerating(true);
-    // AIが生成する風のディレイ
-    setTimeout(() => {
-      const stageRecipes = FULL_RECIPES.filter((r) => r.stage === currentStage.label);
-      const filtered = stageRecipes.filter(
-        (r) => !r.allergens.some((a) => selectedAllergens.includes(a))
-      );
-      setRecipes(filtered);
-      setGenerating(false);
-      setGenerated(true);
-    }, 1500);
+    setGenError('');
+
+    // ログイン済み: API 呼び出し
+    if (isAuthenticated) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const allergenNamesForApi = selectedAllergens.map(id => ALLERGENS.find(a => a.id === id)?.name).filter(Boolean);
+        const res = await fetch('/api/generate-recipe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            baby_month: babyMonth,
+            allergens: allergenNamesForApi,
+            preference: '',
+            meal_type: '',
+            count: 5,
+          }),
+        });
+
+        if (res.status === 429) {
+          const body = await res.json();
+          setServerUsage(body);
+          setGenError('本日のAIレシピ生成回数の上限に達しました');
+          setRecipes(doLocalGenerate());
+        } else if (!res.ok) {
+          setRecipes(doLocalGenerate());
+        } else {
+          const body = await res.json();
+          if (body.usage) setServerUsage(body.usage);
+          setRecipes(body.recipes || []);
+        }
+      } catch {
+        setRecipes(doLocalGenerate());
+      }
+    } else {
+      // 未ログイン: ローカルフォールバック
+      await new Promise(r => setTimeout(r, 1500));
+      setRecipes(doLocalGenerate());
+    }
+
+    setGenerating(false);
+    setGenerated(true);
   };
 
   return (
@@ -2834,8 +3006,11 @@ function RecipeTab() {
               )}
             </button>
             {!isPremium && (
-              <div style={{ textAlign: 'center', fontSize: FONT.sm, color: recipeGenCount >= 1 ? COLORS.danger : COLORS.textLight, fontWeight: 600, marginTop: -12, marginBottom: SPACE.lg }}>
-                {recipeGenCount >= 1 ? '🔒 無料枠を使い切りました' : `🤖 残り ${1 - recipeGenCount}/1回（無料）`}
+              <div style={{ textAlign: 'center', fontSize: FONT.sm, color: (serverUsage ? serverUsage.used >= serverUsage.limit : recipeGenCount >= 1) ? COLORS.danger : COLORS.textLight, fontWeight: 600, marginTop: -12, marginBottom: SPACE.lg }}>
+                {genError ? `🔒 ${genError}` : (serverUsage
+                  ? (serverUsage.used >= serverUsage.limit ? '🔒 無料枠を使い切りました' : `🤖 残り ${serverUsage.limit - serverUsage.used}/${serverUsage.limit}回（本日）`)
+                  : (recipeGenCount >= 1 ? '🔒 無料枠を使い切りました' : `🤖 残り ${1 - recipeGenCount}/1回（無料）`)
+                )}
               </div>
             )}
           </>
