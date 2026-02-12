@@ -1487,14 +1487,27 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [likeAnim, setLikeAnim] = useState(false);
   const playTimerRef = useRef(null);
+  const iframeRef = useRef(null);
 
   const videoId = item.youtube_id;
   const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
 
-  // Shorts 用 embed URL
+  // Shorts 用 embed URL（常に mute=1 で開始、切替は postMessage で行う）
   const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&playsinline=1&controls=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1`
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&controls=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`
     : null;
+
+  // ミュート切替を postMessage で行う（iframe を再生成しない）
+  useEffect(() => {
+    if (playState !== 'playing' || !iframeRef.current) return;
+    try {
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: muted ? 'mute' : 'unMute',
+        args: [],
+      }), '*');
+    } catch { /* cross-origin */ }
+  }, [muted, playState]);
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1631,7 +1644,8 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
       {/* === YouTube iframe（playing 状態のみ） === */}
       {playState === 'playing' && embedUrl && (
         <iframe
-          key={`${videoId}-${muted}`}
+          ref={iframeRef}
+          key={videoId}
           src={embedUrl}
           title={item.title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1827,13 +1841,16 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
   );
 }
 
+// ---------- ホームタブ 動画キャッシュ（タブ切替時の再読み込み防止） ----------
+const videosCache = { data: null, page: 0, hasMore: true };
+
 // ---------- ホームタブ ----------
 function HomeTab() {
   const containerRef = useRef(null);
-  const [videos, setVideos] = useState([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [videos, setVideos] = useState(videosCache.data || []);
+  const [page, setPage] = useState(videosCache.page);
+  const [hasMore, setHasMore] = useState(videosCache.hasMore);
+  const [loading, setLoading] = useState(!videosCache.data);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [feedTab, setFeedTab] = useState('recommend');
   const [cardHeight, setCardHeight] = useState(window.innerHeight - 70);
@@ -1849,8 +1866,9 @@ function HomeTab() {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // 初回ロード: Supabase から動画取得、なければフォールバック
+  // 初回ロード: キャッシュがあればスキップ
   useEffect(() => {
+    if (videosCache.data) return; // キャッシュあり → フェッチ不要
     let cancelled = false;
     async function loadInitial() {
       setLoading(true);
@@ -1860,9 +1878,15 @@ function HomeTab() {
         setVideos(data);
         setPage(1);
         setHasMore(data.length >= SHORTS_PAGE_SIZE);
+        videosCache.data = data;
+        videosCache.page = 1;
+        videosCache.hasMore = data.length >= SHORTS_PAGE_SIZE;
       } else {
         setVideos(FALLBACK_VIDEOS);
         setHasMore(false);
+        videosCache.data = FALLBACK_VIDEOS;
+        videosCache.page = 0;
+        videosCache.hasMore = false;
       }
       setLoading(false);
     }
@@ -1876,11 +1900,22 @@ function HomeTab() {
     loadingRef.current = true;
     const data = await fetchVideosPage(page);
     if (data.length > 0) {
-      setVideos(prev => [...prev, ...data]);
-      setPage(prev => prev + 1);
-      if (data.length < SHORTS_PAGE_SIZE) setHasMore(false);
+      setVideos(prev => {
+        const updated = [...prev, ...data];
+        videosCache.data = updated;
+        return updated;
+      });
+      setPage(prev => {
+        videosCache.page = prev + 1;
+        return prev + 1;
+      });
+      if (data.length < SHORTS_PAGE_SIZE) {
+        setHasMore(false);
+        videosCache.hasMore = false;
+      }
     } else {
       setHasMore(false);
+      videosCache.hasMore = false;
     }
     loadingRef.current = false;
   }, [page, hasMore]);
