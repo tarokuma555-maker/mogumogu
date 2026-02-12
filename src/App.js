@@ -1583,30 +1583,12 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [showIframe, setShowIframe] = useState(false);
-  const loadTimerRef = useRef(null);
+  const [thumbLoaded, setThumbLoaded] = useState(false);
+  const [likeAnim, setLikeAnim] = useState(false);
 
   const videoId = item.youtube_id;
-
-  // アクティブになったらiframeを表示、非アクティブなら破棄
-  useEffect(() => {
-    if (isActive && videoId) {
-      setIframeLoaded(false);
-      setShowIframe(true);
-      // 3秒経っても読み込み完了しなければ強制的に完了扱い
-      loadTimerRef.current = setTimeout(() => setIframeLoaded(true), 3000);
-    } else {
-      setShowIframe(false);
-      setIframeLoaded(false);
-    }
-    return () => { if (loadTimerRef.current) clearTimeout(loadTimerRef.current); };
-  }, [isActive, videoId]);
-
-  const handleIframeLoad = () => {
-    setIframeLoaded(true);
-    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
-  };
+  // YouTube サムネイル URL（高解像度 → 中 → デフォルト）
+  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1614,15 +1596,57 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
     return String(n);
   };
 
+  // 再生ボタン → YouTube Shorts を開く
+  const openVideo = () => {
+    if (videoId) {
+      window.open(`https://www.youtube.com/shorts/${videoId}`, '_blank');
+    } else {
+      const q = item.searchQuery || item.title || '離乳食 レシピ';
+      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}+%23shorts`, '_blank');
+    }
+  };
+
+  // ダブルタップでいいね
+  const lastTapRef = useRef(0);
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (!liked) {
+        setLiked(true);
+        setLikeAnim(true);
+        setTimeout(() => setLikeAnim(false), 600);
+      }
+    }
+    lastTapRef.current = now;
+  };
+
+  // シェア機能
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    const url = videoId
+      ? `https://www.youtube.com/shorts/${videoId}`
+      : `https://www.youtube.com/results?search_query=${encodeURIComponent(item.searchQuery || item.title)}`;
+    const shareData = { title: item.title, text: item.description || item.title, url };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('リンクをコピーしました');
+      }
+    } catch { /* ユーザーがキャンセル */ }
+  };
+
+  // コメント → YouTube動画を開く
+  const handleComment = (e) => {
+    e.stopPropagation();
+    openVideo();
+  };
+
   // 画面外のカードは空divでパフォーマンス最適化
   if (!isVisible) {
     return <div style={{ height: cardHeight, scrollSnapAlign: 'start', flexShrink: 0, background: '#000' }} />;
   }
-
-  // YouTube embed URL: autoplay=1, mute=1, controls=1（ユーザー操作可能に）
-  const embedUrl = videoId
-    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}&iv_load_policy=3`
-    : null;
 
   const stageLabel = item.stage || item.baby_month_stage;
   const stageEmoji = (stageLabel === '初期' || stageLabel === 'ゴックン期') ? '🍼'
@@ -1630,68 +1654,77 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
     : (stageLabel === '後期' || stageLabel === 'カミカミ期') ? '🦷' : '🍽️';
 
   return (
-    <div style={{
-      height: cardHeight,
-      minHeight: 500,
-      background: '#000',
-      position: 'relative',
-      overflow: 'hidden',
-      scrollSnapAlign: 'start',
-      flexShrink: 0,
-    }}>
-      {/* === 動画レイヤー（全画面） === */}
-      <div style={{ position: 'absolute', inset: 0 }}>
-        {/* グラデーション背景（iframe未読み込み or 動画なし時） */}
+    <div
+      onClick={handleDoubleTap}
+      style={{
+        height: cardHeight,
+        minHeight: 500,
+        background: '#000',
+        position: 'relative',
+        overflow: 'hidden',
+        scrollSnapAlign: 'start',
+        flexShrink: 0,
+      }}
+    >
+      {/* === 背景レイヤー === */}
+
+      {/* グラデーション背景（常時表示） */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+      }} />
+
+      {/* YouTube サムネイル画像 */}
+      {thumbnailUrl && (
+        <img
+          src={thumbnailUrl}
+          alt=""
+          onLoad={() => setThumbLoaded(true)}
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover',
+            opacity: thumbLoaded ? 1 : 0,
+            transition: 'opacity 0.4s ease-out',
+            zIndex: 1,
+          }}
+        />
+      )}
+
+      {/* 暗めオーバーレイ（テキスト可読性のため） */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 2,
+        background: 'rgba(0,0,0,0.15)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* ダブルタップいいねアニメーション */}
+      {likeAnim && (
         <div style={{
-          position: 'absolute', inset: 0,
-          background: item.gradient || 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
-          opacity: (videoId && iframeLoaded && isActive) ? 0 : 1,
-          transition: 'opacity 0.6s ease-out',
-          pointerEvents: 'none',
-        }}>
-          {/* 装飾パーティクル */}
-          <div style={{ position: 'absolute', top: '20%', left: '15%', width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
-          <div style={{ position: 'absolute', top: '35%', right: '20%', width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
-          <div style={{ position: 'absolute', top: '55%', left: '30%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-        </div>
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)', zIndex: 50,
+          fontSize: 80, animation: 'heartPop 0.6s ease-out forwards',
+          pointerEvents: 'none', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))',
+        }}>❤️</div>
+      )}
 
-        {/* YouTube iframe — アクティブ時のみ表示、ユーザー操作可能 */}
-        {videoId && showIframe && (
-          <iframe
-            key={videoId}
-            src={embedUrl}
-            title={item.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={handleIframeLoad}
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%', border: 'none',
-              zIndex: 2,
-            }}
-          />
-        )}
-
-        {/* ローディング（スケルトン風パルス）— 3秒タイムアウト付き */}
-        {videoId && showIframe && !iframeLoaded && (
-          <div style={{
-            position: 'absolute', inset: 0, zIndex: 2,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'loadingPulse 1.5s infinite',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-            }}>
-              <span style={{ fontSize: 28, color: '#fff', marginLeft: 3 }}>▶</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* === UIオーバーレイ === */}
+      {/* === 再生ボタン（中央） === */}
+      <button
+        onClick={(e) => { e.stopPropagation(); openVideo(); }}
+        style={{
+          position: 'absolute', top: '42%', left: '50%',
+          transform: 'translate(-50%, -50%)', zIndex: 10,
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(12px)',
+          border: '2px solid rgba(255,255,255,0.3)',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'transform 0.2s ease-out, background 0.2s',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        }}
+      >
+        <span style={{ fontSize: 30, color: '#fff', marginLeft: 4 }}>▶</span>
+      </button>
 
       {/* ステージバッジ */}
       {stageLabel && (
@@ -1707,7 +1740,7 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
         </div>
       )}
 
-      {/* 右サイド アクションバー */}
+      {/* === 右サイド アクションバー === */}
       <div style={{
         position: 'absolute', right: 8, bottom: '24%',
         display: 'flex', flexDirection: 'column', gap: 14,
@@ -1731,22 +1764,30 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
             boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
           }}>+</div>
         </div>
+
+        {/* いいね — タップでトグル + アニメーション */}
         <ShortsActionButton
           icon={liked ? '❤️' : '🤍'}
           label={formatCount(liked ? (item.likes || item.likes_count || 0) + 1 : (item.likes || item.likes_count || 0))}
           onClick={(e) => { e.stopPropagation(); setLiked(!liked); }}
           active={liked}
         />
+
+        {/* コメント → YouTube動画ページを開く */}
         <ShortsActionButton
           icon="💬"
           label={formatCount(item.comments || 0)}
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleComment}
         />
+
+        {/* シェア → Web Share API / クリップボードコピー */}
         <ShortsActionButton
           icon="↗️"
           label="シェア"
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleShare}
         />
+
+        {/* 保存 — タップでトグル */}
         <ShortsActionButton
           icon={saved ? '🔖' : '📑'}
           label={saved ? '保存済' : '保存'}
@@ -1755,7 +1796,7 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
         />
       </div>
 
-      {/* 下部情報オーバーレイ */}
+      {/* === 下部情報オーバーレイ === */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 60, zIndex: 15,
         background: 'linear-gradient(transparent, rgba(0,0,0,0.45) 25%, rgba(0,0,0,0.7))',
@@ -1802,7 +1843,6 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
               display: descExpanded ? 'block' : '-webkit-box',
               WebkitLineClamp: descExpanded ? undefined : 1,
               WebkitBoxOrient: 'vertical',
-              transition: 'all 0.2s',
             }}
           >
             {item.description}
@@ -1810,7 +1850,7 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           </div>
         )}
 
-        {/* ハッシュタグ（横スクロール） */}
+        {/* ハッシュタグ */}
         {(item.hashtags || item.tags)?.length > 0 && (
           <div style={{
             display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2,
@@ -1829,15 +1869,13 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
           </div>
         )}
 
-        {/* 音楽バー（YouTube Shorts風） */}
+        {/* 音楽バー */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
           color: 'rgba(255,255,255,0.6)', fontSize: FONT.xs,
         }}>
           <span style={{ fontSize: 14 }}>♫</span>
-          <div style={{
-            flex: 1, overflow: 'hidden', whiteSpace: 'nowrap',
-          }}>
+          <div style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
             <span style={{
               display: 'inline-block',
               animation: isActive ? 'marquee 8s linear infinite' : 'none',
@@ -1855,7 +1893,7 @@ function ShortsCard({ item, cardHeight, isVisible, isActive }) {
 function HomeTab() {
   const containerRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [videos, setVideos] = useState(DEMO_SHORTS);
+  const [videos] = useState(DEMO_SHORTS);
   const [feedTab, setFeedTab] = useState('recommend');
   const [cardHeight, setCardHeight] = useState(window.innerHeight - 70);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -1866,24 +1904,6 @@ function HomeTab() {
     const updateHeight = () => setCardHeight(window.innerHeight - 70);
     window.addEventListener('resize', updateHeight);
     return () => window.removeEventListener('resize', updateHeight);
-  }, []);
-
-  // Supabase からデータ取得、無ければデモ
-  useEffect(() => {
-    const fetchVideos = async () => {
-      try {
-        const { data } = await supabase
-          .from('videos')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (data && data.length > 0) {
-          setVideos(data);
-        }
-      } catch (e) {
-        console.log('Supabase未接続、デモモードで動作');
-      }
-    };
-    fetchVideos();
   }, []);
 
   // スクロール監視（ease-outで滑らかに）
