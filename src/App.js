@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { supabase } from './lib/supabase';
+import Resizer from 'react-image-file-resizer';
 
 // ============================================================
 // MoguMogu - 離乳食サポートアプリ
@@ -2607,6 +2608,106 @@ const SNS_FILTERS = [
   { id: 'パクパク期', label: '完了期' },
 ];
 
+// ---------- 画像リサイズ & アップロード ----------
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGES = 4;
+
+function resizeImage(file) {
+  return new Promise((resolve) => {
+    Resizer.imageFileResizer(
+      file, 1200, 1200, 'JPEG', 80, 0,
+      (blob) => resolve(blob),
+      'blob'
+    );
+  });
+}
+
+async function uploadPostImages(files, userId, onProgress) {
+  const urls = [];
+  const timestamp = Date.now();
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.({ current: i, total: files.length });
+    const resized = await resizeImage(files[i]);
+    const path = `${userId}/${timestamp}_${i}.jpg`;
+    const { error } = await supabase.storage
+      .from('post-images')
+      .upload(path, resized, { contentType: 'image/jpeg' });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('post-images')
+      .getPublicUrl(path);
+    urls.push(publicUrl);
+  }
+  onProgress?.({ current: files.length, total: files.length });
+  return urls;
+}
+
+function getTimeAgo(dateStr) {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMin = Math.floor((now - d) / 60000);
+  if (diffMin < 1) return 'たった今';
+  if (diffMin < 60) return `${diffMin}分前`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}時間前`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}日前`;
+  return `${Math.floor(diffDay / 30)}ヶ月前`;
+}
+
+// ---------- 画像ライトボックス ----------
+function ImageLightbox({ images, initialIndex = 0, onClose }) {
+  const [index, setIndex] = useState(initialIndex);
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 3000,
+      background: 'rgba(0,0,0,0.95)', display: 'flex',
+      flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <button onClick={onClose} style={{
+        position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.2)',
+        border: 'none', borderRadius: '50%', width: 44, height: 44,
+        color: '#fff', fontSize: 20, cursor: 'pointer', zIndex: 3001,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>✕</button>
+      <img
+        src={images[index]}
+        alt=""
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '95vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }}
+      />
+      {images.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          {images.map((_, i) => (
+            <button key={i} onClick={(e) => { e.stopPropagation(); setIndex(i); }} style={{
+              width: 10, height: 10, borderRadius: '50%', border: 'none',
+              background: i === index ? '#fff' : 'rgba(255,255,255,0.4)', cursor: 'pointer',
+            }} />
+          ))}
+        </div>
+      )}
+      {images.length > 1 && index > 0 && (
+        <button onClick={(e) => { e.stopPropagation(); setIndex(prev => prev - 1); }} style={{
+          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
+          width: 44, height: 44, color: '#fff', fontSize: 22, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>‹</button>
+      )}
+      {images.length > 1 && index < images.length - 1 && (
+        <button onClick={(e) => { e.stopPropagation(); setIndex(prev => prev + 1); }} style={{
+          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
+          width: 44, height: 44, color: '#fff', fontSize: 22, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>›</button>
+      )}
+    </div>
+  );
+}
+
 // ---------- SNS投稿カード ----------
 function SnsPostCard({ post }) {
   const { tryComment } = usePremium();
@@ -2615,10 +2716,23 @@ function SnsPostCard({ post }) {
   const [showRecipe, setShowRecipe] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [commentOpen, setCommentOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [imgScrollIndex, setImgScrollIndex] = useState(0);
+  const imgScrollRef = useRef(null);
+
+  const hasRealImages = post.imageUrls && post.imageUrls.length > 0;
 
   const toggleLike = () => {
     setLiked((prev) => !prev);
     setLikeCount((prev) => liked ? prev - 1 : prev + 1);
+  };
+
+  const handleImgScroll = () => {
+    if (!imgScrollRef.current) return;
+    const el = imgScrollRef.current;
+    const idx = Math.round(el.scrollLeft / el.offsetWidth);
+    setImgScrollIndex(idx);
   };
 
   return (
@@ -2654,29 +2768,86 @@ function SnsPostCard({ post }) {
       </div>
 
       {/* 写真エリア */}
-      <div style={{
-        background: post.photoBg, height: 280, display: 'flex',
-        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        position: 'relative',
-      }}>
-        <span style={{ fontSize: 90, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>
-          {post.photoEmoji}
-        </span>
+      {hasRealImages ? (
+        <div style={{ position: 'relative' }}>
+          <div
+            ref={imgScrollRef}
+            onScroll={handleImgScroll}
+            style={{
+              display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {post.imageUrls.map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt=""
+                onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+                style={{
+                  width: '100%', height: 280, objectFit: 'cover', flexShrink: 0,
+                  scrollSnapAlign: 'start', cursor: 'pointer',
+                }}
+              />
+            ))}
+          </div>
+          {post.imageUrls.length > 1 && (
+            <div style={{
+              position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+              display: 'flex', gap: 5,
+            }}>
+              {post.imageUrls.map((_, i) => (
+                <div key={i} style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: i === imgScrollIndex ? '#fff' : 'rgba(255,255,255,0.5)',
+                  transition: 'background 0.2s',
+                }} />
+              ))}
+            </div>
+          )}
+          {post.hasRecipe && (
+            <div style={{
+              position: 'absolute', top: SPACE.md, right: SPACE.md,
+              background: 'rgba(255,140,66,0.9)', backdropFilter: 'blur(4px)',
+              borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.sm + 2}px`,
+              color: '#fff', fontSize: FONT.sm, fontWeight: 700,
+            }}>🍳 レシピ付き</div>
+          )}
+        </div>
+      ) : (
         <div style={{
-          position: 'absolute', bottom: SPACE.md, left: SPACE.md,
-          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
-          borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.md}px`,
-          color: '#fff', fontSize: FONT.sm, fontWeight: 700,
-        }}>{post.photoLabel}</div>
-        {post.hasRecipe && (
+          background: post.photoBg, height: 280, display: 'flex',
+          flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          position: 'relative',
+        }}>
+          <span style={{ fontSize: 90, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>
+            {post.photoEmoji}
+          </span>
           <div style={{
-            position: 'absolute', top: SPACE.md, right: SPACE.md,
-            background: 'rgba(255,140,66,0.9)', backdropFilter: 'blur(4px)',
-            borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.sm + 2}px`,
+            position: 'absolute', bottom: SPACE.md, left: SPACE.md,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+            borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.md}px`,
             color: '#fff', fontSize: FONT.sm, fontWeight: 700,
-          }}>🍳 レシピ付き</div>
-        )}
-      </div>
+          }}>{post.photoLabel}</div>
+          {post.hasRecipe && (
+            <div style={{
+              position: 'absolute', top: SPACE.md, right: SPACE.md,
+              background: 'rgba(255,140,66,0.9)', backdropFilter: 'blur(4px)',
+              borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.sm + 2}px`,
+              color: '#fff', fontSize: FONT.sm, fontWeight: 700,
+            }}>🍳 レシピ付き</div>
+          )}
+        </div>
+      )}
+
+      {/* ライトボックス */}
+      {lightboxOpen && hasRealImages && (
+        <ImageLightbox
+          images={post.imageUrls}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
 
       {/* アクションバー */}
       <div style={{
@@ -2795,37 +2966,110 @@ function SnsPostCard({ post }) {
 
 // ---------- 新規投稿フォーム ----------
 function NewPostForm({ onClose, onPost }) {
+  const { user, isAuthenticated, setAuthScreen } = useAuth();
   const [text, setText] = useState('');
   const [tags, setTags] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [images, setImages] = useState([]); // { file, preview }[]
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+  const previewUrlsRef = useRef([]);
 
-  const photoOptions = [
-    { emoji: '🥕', label: 'にんじん', bg: 'linear-gradient(135deg, #FF6B35, #FDCB6E)' },
-    { emoji: '🎃', label: 'かぼちゃ', bg: 'linear-gradient(135deg, #F39C12, #F1C40F)' },
-    { emoji: '🍌', label: 'バナナ', bg: 'linear-gradient(135deg, #A29BFE, #6C5CE7)' },
-    { emoji: '🍚', label: 'おかゆ', bg: 'linear-gradient(135deg, #DFE6E9, #B2BEC3)' },
-    { emoji: '🐟', label: 'しらす', bg: 'linear-gradient(135deg, #0984E3, #74B9FF)' },
-    { emoji: '🍔', label: 'ハンバーグ', bg: 'linear-gradient(135deg, #E17055, #FAB1A0)' },
-  ];
+  useEffect(() => {
+    const urls = previewUrlsRef.current;
+    return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
+  }, []);
 
-  const handleSubmit = () => {
-    if (!text.trim() || !selectedPhoto) return;
-    onPost({
-      text,
-      tags: tags.split(/[\s,]+/).filter(Boolean).map((t) => t.startsWith('#') ? t : `#${t}`),
-      photo: selectedPhoto,
+  if (!isAuthenticated) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 2000,
+        background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div style={{
+          background: '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480,
+          padding: '32px 24px env(safe-area-inset-bottom, 24px)', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 50, marginBottom: 16 }}>🔐</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>
+            ログインが必要です
+          </div>
+          <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: 20 }}>
+            写真を投稿するにはログインしてください
+          </div>
+          <button className="tap-scale" onClick={() => { onClose(); setAuthScreen('login'); }} style={{
+            background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+            border: 'none', borderRadius: 14, padding: '12px 32px',
+            color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}>ログイン</button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    setError('');
+    const remaining = MAX_IMAGES - images.length;
+    const selected = files.slice(0, remaining);
+    for (const file of selected) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setError('JPEG、PNG、WEBPの画像のみ対応しています');
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        setError('5MB以下の画像を選択してください');
+        return;
+      }
+    }
+    const newImages = selected.map((file) => {
+      const preview = URL.createObjectURL(file);
+      previewUrlsRef.current.push(preview);
+      return { file, preview };
     });
+    setImages((prev) => [...prev, ...newImages]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const removeImage = (idx) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmit = async () => {
+    if (!text.trim() || images.length === 0) return;
+    setUploading(true);
+    setError('');
+    try {
+      const imageUrls = await uploadPostImages(
+        images.map((img) => img.file),
+        user.id,
+        (p) => setUploadProgress(p)
+      );
+      onPost({
+        text,
+        tags: tags.split(/[\s,]+/).filter(Boolean).map((t) => t.startsWith('#') ? t : `#${t}`),
+        imageUrls,
+      });
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('アップロードに失敗しました。もう一度お試しください。');
+      setUploading(false);
+    }
+  };
+
+  const canSubmit = text.trim() && images.length > 0 && !uploading;
 
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 2000,
       background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    }} onClick={(e) => { if (e.target === e.currentTarget && !uploading) onClose(); }}>
       <div style={{
         background: '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 480,
-        maxHeight: '85vh', overflow: 'auto', padding: '0 0 env(safe-area-inset-bottom, 16px)',
+        maxHeight: '90vh', overflow: 'auto', padding: '0 0 env(safe-area-inset-bottom, 16px)',
       }}>
         {/* ハンドル */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
@@ -2837,40 +3081,100 @@ function NewPostForm({ onClose, onPost }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 16px 12px',
         }}>
-          <button onClick={onClose} style={{
+          <button onClick={() => { if (!uploading) onClose(); }} style={{
             background: 'none', border: 'none', fontSize: 14, color: COLORS.textLight,
             cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+            opacity: uploading ? 0.4 : 1,
           }}>キャンセル</button>
           <span style={{ fontWeight: 900, fontSize: 16, color: COLORS.text }}>新規投稿</span>
-          <button onClick={handleSubmit} disabled={!text.trim() || !selectedPhoto} style={{
-            background: text.trim() && selectedPhoto
+          <button onClick={handleSubmit} disabled={!canSubmit} style={{
+            background: canSubmit
               ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
               : '#DDD',
             border: 'none', borderRadius: 14, padding: '6px 16px',
             color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>シェア</button>
+          }}>{uploading ? '投稿中...' : 'シェア'}</button>
         </div>
+
+        {/* アップロード進捗バー */}
+        {uploading && (
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{ fontSize: 12, color: COLORS.textLight, marginBottom: 6, textAlign: 'center' }}>
+              画像をアップロード中... ({uploadProgress.current}/{uploadProgress.total})
+            </div>
+            <div style={{
+              width: '100%', height: 6, borderRadius: 3, background: '#FFE0C2', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 3,
+                background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+                width: uploadProgress.total > 0
+                  ? `${(uploadProgress.current / uploadProgress.total) * 100}%`
+                  : '0%',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '0 16px 16px' }}>
           {/* 写真選択 */}
           <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.textLight, marginBottom: 8 }}>
-            📷 写真を選ぶ（デモ）
+            📷 写真を選ぶ（最大{MAX_IMAGES}枚）
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
-            {photoOptions.map((p) => (
-              <button key={p.emoji} onClick={() => setSelectedPhoto(p)} style={{
-                background: p.bg, border: selectedPhoto?.emoji === p.emoji
-                  ? '3px solid #fff' : '2px solid transparent',
-                borderRadius: 14, padding: '18px 0', cursor: 'pointer',
-                textAlign: 'center', outline: selectedPhoto?.emoji === p.emoji
-                  ? `3px solid ${COLORS.primaryDark}` : 'none',
-                transition: 'transform 0.15s', transform: selectedPhoto?.emoji === p.emoji ? 'scale(0.95)' : 'none',
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            multiple
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {images.map((img, i) => (
+              <div key={i} style={{
+                width: 90, height: 90, borderRadius: 14, overflow: 'hidden',
+                position: 'relative', border: `2px solid ${COLORS.border}`,
               }}>
-                <div style={{ fontSize: 36 }}>{p.emoji}</div>
-                <div style={{ fontSize: 10, color: '#fff', fontWeight: 700, marginTop: 4 }}>{p.label}</div>
-              </button>
+                <img src={img.preview} alt="" style={{
+                  width: '100%', height: '100%', objectFit: 'cover',
+                }} />
+                <button onClick={() => removeImage(i)} style={{
+                  position: 'absolute', top: 4, right: 4, width: 22, height: 22,
+                  borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none',
+                  color: '#fff', fontSize: 12, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>✕</button>
+              </div>
             ))}
+            {images.length < MAX_IMAGES && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                style={{
+                  width: 90, height: 90, borderRadius: 14,
+                  border: `2px dashed ${COLORS.border}`, background: COLORS.tagBg,
+                  cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 4,
+                  opacity: uploading ? 0.4 : 1,
+                }}
+              >
+                <span style={{ fontSize: 24 }}>📷</span>
+                <span style={{ fontSize: 10, color: COLORS.textLight, fontWeight: 600 }}>追加</span>
+              </button>
+            )}
           </div>
+
+          {/* エラー表示 */}
+          {error && (
+            <div style={{
+              background: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 10,
+              padding: '8px 12px', fontSize: 12, color: '#D63031', marginBottom: 12,
+            }}>{error}</div>
+          )}
 
           {/* テキスト入力 */}
           <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.textLight, marginBottom: 8 }}>
@@ -2881,10 +3185,12 @@ function NewPostForm({ onClose, onPost }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="今日の離乳食について書いてみよう..."
             rows={4}
+            disabled={uploading}
             style={{
               width: '100%', borderRadius: 14, border: `2px solid ${COLORS.border}`,
               padding: 14, fontSize: 14, fontFamily: 'inherit', color: COLORS.text,
               resize: 'none', outline: 'none', background: COLORS.bg, boxSizing: 'border-box',
+              opacity: uploading ? 0.5 : 1,
             }}
           />
 
@@ -2897,18 +3203,21 @@ function NewPostForm({ onClose, onPost }) {
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             placeholder="#離乳食 #ゴックン期 #レシピ"
+            disabled={uploading}
             style={{
               width: '100%', borderRadius: 14, border: `2px solid ${COLORS.border}`,
               padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', color: COLORS.text,
               outline: 'none', background: COLORS.bg, boxSizing: 'border-box',
+              opacity: uploading ? 0.5 : 1,
             }}
           />
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
             {['#離乳食', '#今日のごはん', '#手作り離乳食', '#もぐもぐ'].map((t) => (
-              <button key={t} onClick={() => setTags((prev) => prev ? `${prev} ${t}` : t)} style={{
+              <button key={t} onClick={() => setTags((prev) => prev ? `${prev} ${t}` : t)} disabled={uploading} style={{
                 background: COLORS.tagBg, border: `1px solid ${COLORS.border}`,
                 borderRadius: 12, padding: '4px 10px', fontSize: 11, fontWeight: 600,
                 cursor: 'pointer', fontFamily: 'inherit', color: COLORS.primaryDark,
+                opacity: uploading ? 0.5 : 1,
               }}>{t}</button>
             ))}
           </div>
@@ -2921,11 +3230,45 @@ function NewPostForm({ onClose, onPost }) {
 // ---------- もぐもぐシェアタブ ----------
 function ShareTab() {
   const { tryPost } = usePremium();
+  const { user } = useAuth();
   const [filter, setFilter] = useState('all');
   const [showNewPost, setShowNewPost] = useState(false);
-  const [userPosts, setUserPosts] = useState([]);
+  const [supabasePosts, setSupabasePosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
-  const allPosts = [...userPosts, ...SNS_POSTS];
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) {
+        const formatted = data.map((p) => ({
+          id: p.id,
+          userId: p.user_id,
+          userName: p.user_name || 'ユーザー',
+          avatar: p.avatar || '😊',
+          stage: p.stage || 'ゴックン期',
+          timeAgo: getTimeAgo(p.created_at),
+          imageUrls: p.image_urls || [],
+          photoEmoji: null,
+          photoBg: null,
+          photoLabel: '',
+          caption: p.caption || '',
+          hashtags: p.hashtags || [],
+          likes: p.likes_count || 0,
+          comments: p.comments_count || 0,
+          hasRecipe: false,
+        }));
+        setSupabasePosts(formatted);
+      }
+      setLoadingPosts(false);
+    };
+    fetchPosts();
+  }, []);
+
+  const allPosts = [...supabasePosts, ...SNS_POSTS];
 
   const filteredPosts = allPosts.filter((post) => {
     if (filter === 'all') return true;
@@ -2933,24 +3276,38 @@ function ShareTab() {
     return post.stage === filter;
   });
 
-  const handleNewPost = (data) => {
+  const handleNewPost = async (data) => {
+    const postData = {
+      user_id: user?.id,
+      user_name: user?.user_metadata?.full_name || 'あなた',
+      avatar: '😊',
+      stage: 'ゴックン期',
+      caption: data.text,
+      hashtags: data.tags,
+      image_urls: data.imageUrls,
+      likes_count: 0,
+      comments_count: 0,
+    };
+    const { data: saved } = await supabase
+      .from('posts')
+      .insert(postData)
+      .select()
+      .single();
     const newPost = {
-      id: `user-${Date.now()}`,
-      userId: 'me',
-      userName: 'あなた',
+      id: saved?.id || `local-${Date.now()}`,
+      userId: user?.id || 'me',
+      userName: postData.user_name,
       avatar: '😊',
       stage: 'ゴックン期',
       timeAgo: 'たった今',
-      photoEmoji: data.photo.emoji,
-      photoBg: data.photo.bg,
-      photoLabel: data.photo.label,
+      imageUrls: data.imageUrls,
       caption: data.text,
       hashtags: data.tags,
       likes: 0,
       comments: 0,
       hasRecipe: false,
     };
-    setUserPosts((prev) => [newPost, ...prev]);
+    setSupabasePosts((prev) => [newPost, ...prev]);
     setShowNewPost(false);
   };
 
@@ -3024,6 +3381,11 @@ function ShareTab() {
 
       {/* フィード */}
       <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px 0` }}>
+        {loadingPosts && supabasePosts.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ fontSize: 13, color: COLORS.textLight }}>投稿を読み込み中...</div>
+          </div>
+        )}
         {filteredPosts.length > 0 ? (
           filteredPosts.map((post, i) => (
             <React.Fragment key={post.id}>
