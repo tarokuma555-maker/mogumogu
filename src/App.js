@@ -1740,25 +1740,6 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
         display: 'flex', flexDirection: 'column', gap: 16,
         alignItems: 'center', zIndex: 20,
       }}>
-        {/* チャンネルアバター */}
-        <div style={{ marginBottom: 4, position: 'relative' }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.15)', border: '2px solid #fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, color: '#fff', fontWeight: 700,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-          }}>
-            {channelName[0] || '?'}
-          </div>
-          <div style={{
-            position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)',
-            width: 20, height: 20, borderRadius: '50%',
-            background: '#FF4757', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, color: '#fff', fontWeight: 900,
-          }}>+</div>
-        </div>
-
         <ActionBtn
           icon={liked ? '❤️' : '🤍'}
           label={formatCount(liked ? likesNum + 1 : likesNum)}
@@ -1852,7 +1833,6 @@ function HomeTab() {
   const [hasMore, setHasMore] = useState(videosCache.hasMore);
   const [loading, setLoading] = useState(!videosCache.data);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [feedTab, setFeedTab] = useState('recommend');
   const [cardHeight, setCardHeight] = useState(window.innerHeight - 70);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimerRef = useRef(null);
@@ -2021,38 +2001,7 @@ function HomeTab() {
           </span>
         </div>
 
-        {/* 中央: タブ切替 */}
-        <div style={{ display: 'flex', gap: 24, pointerEvents: 'auto' }}>
-          {[{ key: 'recommend', label: 'おすすめ' }, { key: 'following', label: 'フォロー中' }].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setFeedTab(tab.key)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#fff', fontSize: 15,
-                fontWeight: feedTab === tab.key ? 800 : 400,
-                opacity: feedTab === tab.key ? 1 : 0.55,
-                fontFamily: 'inherit', padding: '4px 0',
-                borderBottom: feedTab === tab.key ? '2.5px solid #fff' : '2.5px solid transparent',
-                textShadow: '0 1px 6px rgba(0,0,0,0.4)',
-                transition: 'all 0.25s ease-out',
-                letterSpacing: 0.3,
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* 右: 通知 */}
-        <div style={{ pointerEvents: 'auto' }}>
-          <span style={{
-            fontSize: 20, color: '#fff',
-            textShadow: '0 1px 6px rgba(0,0,0,0.4)',
-          }}>
-            🔔
-          </span>
-        </div>
+        <div />
       </div>
 
       {/* メインスクロールコンテナ */}
