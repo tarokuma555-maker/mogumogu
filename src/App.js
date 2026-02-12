@@ -2023,7 +2023,7 @@ function SearchTab() {
   const [isSearching, setIsSearching] = useState(false);
   const [serverUsage, setServerUsage] = useState(null);
   const { isPremium, trySearch, searchCount } = usePremium();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const searchTimerRef = useRef(null);
 
   const doLocalSearch = (q) => {
