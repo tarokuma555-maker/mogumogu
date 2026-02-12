@@ -2723,9 +2723,18 @@ function SnsPostCard({ post }) {
 
   const hasRealImages = post.imageUrls && post.imageUrls.length > 0;
 
+  const isSupabasePost = post.id && !String(post.id).startsWith('p') && !String(post.id).startsWith('local-');
+
   const toggleLike = () => {
-    setLiked((prev) => !prev);
-    setLikeCount((prev) => liked ? prev - 1 : prev + 1);
+    const newLiked = !liked;
+    setLiked(newLiked);
+    const newCount = newLiked ? likeCount + 1 : likeCount - 1;
+    setLikeCount(newCount);
+    if (isSupabasePost) {
+      supabase.from('posts').update({ likes_count: newCount }).eq('id', post.id).then(({ error }) => {
+        if (error) console.error('like update error:', error);
+      });
+    }
   };
 
   const handleImgScroll = () => {
@@ -3228,6 +3237,29 @@ function NewPostForm({ onClose, onPost }) {
 }
 
 // ---------- もぐもぐシェアタブ ----------
+const POSTS_PER_PAGE = 20;
+
+function formatSupabasePost(p) {
+  return {
+    id: p.id,
+    userId: p.user_id,
+    userName: p.user_name || 'ユーザー',
+    avatar: p.avatar || '😊',
+    stage: p.stage || 'ゴックン期',
+    timeAgo: getTimeAgo(p.created_at),
+    imageUrls: p.image_urls || [],
+    photoEmoji: null,
+    photoBg: null,
+    photoLabel: '',
+    caption: p.caption || '',
+    hashtags: p.hashtags || [],
+    likes: p.likes_count || 0,
+    comments: p.comments_count || 0,
+    hasRecipe: false,
+    _createdAt: p.created_at,
+  };
+}
+
 function ShareTab() {
   const { tryPost } = usePremium();
   const { user } = useAuth();
@@ -3235,38 +3267,131 @@ function ShareTab() {
   const [showNewPost, setShowNewPost] = useState(false);
   const [supabasePosts, setSupabasePosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [newPostsBanner, setNewPostsBanner] = useState(0);
+  const pendingPostsRef = useRef([]);
+  const feedRef = useRef(null);
+  const sentinelRef = useRef(null);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      const { data } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (data) {
-        const formatted = data.map((p) => ({
-          id: p.id,
-          userId: p.user_id,
-          userName: p.user_name || 'ユーザー',
-          avatar: p.avatar || '😊',
-          stage: p.stage || 'ゴックン期',
-          timeAgo: getTimeAgo(p.created_at),
-          imageUrls: p.image_urls || [],
-          photoEmoji: null,
-          photoBg: null,
-          photoLabel: '',
-          caption: p.caption || '',
-          hashtags: p.hashtags || [],
-          likes: p.likes_count || 0,
-          comments: p.comments_count || 0,
-          hasRecipe: false,
-        }));
-        setSupabasePosts(formatted);
-      }
-      setLoadingPosts(false);
-    };
-    fetchPosts();
+  // --- プルダウンリフレッシュ ---
+  const [pullY, setPullY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+
+  const fetchPosts = useCallback(async (offset = 0) => {
+    const { data } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + POSTS_PER_PAGE - 1);
+    const formatted = (data || []).map(formatSupabasePost);
+    if (offset === 0) {
+      setSupabasePosts(formatted);
+    } else {
+      setSupabasePosts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newOnes = formatted.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...newOnes];
+      });
+    }
+    setHasMore((data || []).length >= POSTS_PER_PAGE);
+    setLoadingPosts(false);
+    setLoadingMore(false);
+    setRefreshing(false);
+    return formatted;
   }, []);
+
+  // 初回読み込み
+  useEffect(() => {
+    fetchPosts(0);
+  }, [fetchPosts]);
+
+  // --- Supabase Realtime ---
+  useEffect(() => {
+    const channel = supabase
+      .channel('posts-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        const incoming = formatSupabasePost(payload.new);
+        // 自分の投稿はhandleNewPostで既に追加済みなのでスキップ
+        setSupabasePosts((prev) => {
+          if (prev.some((p) => p.id === incoming.id)) return prev;
+          // 他ユーザーの投稿 → バナー表示
+          pendingPostsRef.current = [incoming, ...pendingPostsRef.current];
+          setNewPostsBanner((c) => c + 1);
+          return prev;
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        const updated = payload.new;
+        setSupabasePosts((prev) => prev.map((p) =>
+          p.id === updated.id ? { ...p, likes: updated.likes_count || 0, comments: updated.comments_count || 0 } : p
+        ));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // --- 無限スクロール ---
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadingPosts) {
+          setLoadingMore(true);
+          fetchPosts(supabasePosts.length);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadingPosts, supabasePosts.length, fetchPosts]);
+
+  // --- プルダウンリフレッシュハンドラ ---
+  const handleTouchStart = useCallback((e) => {
+    const feed = feedRef.current;
+    if (!feed || feed.scrollTop > 5) return;
+    touchStartY.current = e.touches[0].clientY;
+    isPulling.current = true;
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isPulling.current || refreshing) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff > 0) {
+      setPullY(Math.min(diff * 0.4, 80));
+    }
+  }, [refreshing]);
+
+  const handleTouchEnd = useCallback(() => {
+    isPulling.current = false;
+    if (pullY > 50 && !refreshing) {
+      setRefreshing(true);
+      setPullY(50);
+      setLoadingPosts(true);
+      pendingPostsRef.current = [];
+      setNewPostsBanner(0);
+      fetchPosts(0);
+    } else {
+      setPullY(0);
+    }
+  }, [pullY, refreshing, fetchPosts]);
+
+  // 「新しい投稿があります」バナーをタップ
+  const loadNewPosts = () => {
+    setSupabasePosts((prev) => {
+      const existingIds = new Set(prev.map((p) => p.id));
+      const fresh = pendingPostsRef.current.filter((p) => !existingIds.has(p.id));
+      return [...fresh, ...prev];
+    });
+    pendingPostsRef.current = [];
+    setNewPostsBanner(0);
+    if (feedRef.current) feedRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const allPosts = [...supabasePosts, ...SNS_POSTS];
 
@@ -3312,8 +3437,60 @@ function ShareTab() {
   };
 
   return (
-    <div className="fade-in">
+    <div
+      ref={feedRef}
+      className="fade-in"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ position: 'relative' }}
+    >
+      {/* プルダウンリフレッシュインジケーター */}
+      {(pullY > 0 || refreshing) && (
+        <div style={{
+          height: refreshing ? 50 : pullY, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: refreshing ? 'none' : 'height 0.15s ease',
+          background: COLORS.bg,
+        }}>
+          <div style={{
+            fontSize: 13, color: COLORS.textLight, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            {refreshing ? (
+              <>
+                <span style={{ animation: 'loadingPulse 1s infinite' }}>🔄</span>
+                更新中...
+              </>
+            ) : pullY > 50 ? (
+              '↑ 離して更新'
+            ) : (
+              '↓ 引っ張って更新'
+            )}
+          </div>
+        </div>
+      )}
+
       <Header title="📷 もぐもぐシェア" subtitle="みんなの離乳食をシェアしよう" />
+
+      {/* 「新しい投稿があります」バナー */}
+      {newPostsBanner > 0 && (
+        <button className="tap-scale" onClick={loadNewPosts} style={{
+          position: 'sticky', top: 0, zIndex: 100, width: '100%',
+          background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+          border: 'none', padding: '10px 16px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          fontFamily: 'inherit', animation: 'fadeInUp 0.3s ease-out',
+        }}>
+          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
+            {newPostsBanner}件の新しい投稿があります
+          </span>
+          <span style={{
+            background: 'rgba(255,255,255,0.25)', borderRadius: 8,
+            padding: '2px 8px', fontSize: 11, color: '#fff', fontWeight: 700,
+          }}>タップで表示</span>
+        </button>
+      )}
 
       {/* ストーリーズ */}
       <div style={{
@@ -3323,14 +3500,14 @@ function ShareTab() {
           display: 'flex', gap: SPACE.lg, overflowX: 'auto', padding: `0 ${SPACE.lg}px`,
           WebkitOverflowScrolling: 'touch',
         }}>
-          {STORY_USERS.map((user) => (
-            <div key={user.id} style={{
+          {STORY_USERS.map((su) => (
+            <div key={su.id} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: 4, flexShrink: 0, cursor: 'pointer',
             }}>
               <div style={{
                 width: 56, height: 56, borderRadius: '50%',
-                background: user.hasStory
+                background: su.hasStory
                   ? `linear-gradient(135deg, ${COLORS.primary}, #E91E63, #FDCB6E)`
                   : COLORS.border,
                 padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3338,10 +3515,10 @@ function ShareTab() {
                 <div style={{
                   width: '100%', height: '100%', borderRadius: '50%', background: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: user.isMe ? 20 : 24, position: 'relative',
+                  fontSize: su.isMe ? 20 : 24, position: 'relative',
                 }}>
-                  {user.avatar}
-                  {user.isMe && (
+                  {su.avatar}
+                  {su.isMe && (
                     <div style={{
                       position: 'absolute', bottom: -2, right: -2, width: 18, height: 18,
                       borderRadius: '50%', background: COLORS.primaryDark, color: '#fff',
@@ -3354,7 +3531,7 @@ function ShareTab() {
               <span style={{
                 fontSize: FONT.xs, color: COLORS.text, fontWeight: 500,
                 maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>{user.isMe ? 'あなた' : user.name}</span>
+              }}>{su.isMe ? 'あなた' : su.name}</span>
             </div>
           ))}
         </div>
@@ -3382,7 +3559,8 @@ function ShareTab() {
       {/* フィード */}
       <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px 0` }}>
         {loadingPosts && supabasePosts.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ fontSize: 32, marginBottom: 8, animation: 'loadingPulse 1s infinite' }}>🍽️</div>
             <div style={{ fontSize: 13, color: COLORS.textLight }}>投稿を読み込み中...</div>
           </div>
         )}
@@ -3398,7 +3576,7 @@ function ShareTab() {
               {i === 7 && <BannerAd ad={getAd(0)} style={{ marginBottom: SPACE.md }} />}
             </React.Fragment>
           ))
-        ) : (
+        ) : !loadingPosts ? (
           <div style={{
             textAlign: 'center', padding: `50px ${SPACE.xl}px`,
             background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
@@ -3410,6 +3588,22 @@ function ShareTab() {
             <div style={{ fontSize: FONT.sm, color: COLORS.textLight }}>
               フィルタを変更してみてください
             </div>
+          </div>
+        ) : null}
+
+        {/* 無限スクロール用センチネル */}
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {loadingMore && (
+          <div style={{ textAlign: 'center', padding: '20px 0 32px' }}>
+            <div style={{ fontSize: 13, color: COLORS.textLight, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span style={{ animation: 'loadingPulse 1s infinite' }}>🍼</span>
+              もっと読み込み中...
+            </div>
+          </div>
+        )}
+        {!hasMore && supabasePosts.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 12, color: COLORS.textLight }}>
+            すべての投稿を表示しました
           </div>
         )}
       </div>
