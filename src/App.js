@@ -323,33 +323,42 @@ function usePremium() {
 }
 
 // ---------- useFavorites フック ----------
+const FAVORITE_LIMIT_FREE = 3;
+
 function useFavorites() {
   const { user, isAuthenticated } = useAuth();
+  const { isPremium, setShowPaywall, setPaywallReason } = usePremium();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // localStorage ヘルパー
+  const readLocal = useCallback(() => {
+    try { return JSON.parse(localStorage.getItem('mogumogu_favorites') || '[]'); } catch { return []; }
+  }, []);
+  const writeLocal = useCallback((items) => {
+    localStorage.setItem('mogumogu_favorites', JSON.stringify(items));
+  }, []);
+
   const fetchFavorites = useCallback(async () => {
     if (!isAuthenticated || !user) {
-      // 未ログイン: localStorage から読み込み
-      try {
-        const stored = JSON.parse(localStorage.getItem('mogumogu_favorites') || '[]');
-        setFavorites(stored);
-      } catch { setFavorites([]); }
+      setFavorites(readLocal());
       return;
     }
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('favorites')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+      if (error) throw error;
       setFavorites(data || []);
     } catch (e) {
-      console.error('fetchFavorites error:', e);
+      console.error('fetchFavorites error (fallback to localStorage):', e);
+      setFavorites(readLocal());
     }
     setLoading(false);
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, readLocal]);
 
   useEffect(() => { fetchFavorites(); }, [fetchFavorites]);
 
@@ -360,8 +369,16 @@ function useFavorites() {
   const toggleFavorite = useCallback(async (itemType, itemId, itemData = {}) => {
     const exists = isFavorite(itemType, itemId);
 
+    // 削除でない場合（新規保存）→ 無料ユーザーは3回制限
+    if (!exists && !isPremium) {
+      if (favorites.length >= FAVORITE_LIMIT_FREE) {
+        setPaywallReason(`保存できるアイテムは無料会員は${FAVORITE_LIMIT_FREE}件までです。プレミアム会員になると無制限に保存できます`);
+        setShowPaywall(true);
+        return;
+      }
+    }
+
     if (!isAuthenticated || !user) {
-      // 未ログイン: localStorage
       setFavorites(prev => {
         let updated;
         if (exists) {
@@ -369,34 +386,58 @@ function useFavorites() {
         } else {
           updated = [{ item_type: itemType, item_id: itemId, item_data: itemData, created_at: new Date().toISOString() }, ...prev];
         }
-        localStorage.setItem('mogumogu_favorites', JSON.stringify(updated));
+        writeLocal(updated);
         return updated;
       });
       return;
     }
 
+    // Supabase 操作（失敗時は localStorage にフォールバック）
     try {
       if (exists) {
-        await supabase.from('favorites').delete()
+        const { error } = await supabase.from('favorites').delete()
           .eq('user_id', user.id)
           .eq('item_type', itemType)
           .eq('item_id', itemId);
-        setFavorites(prev => prev.filter(f => !(f.item_type === itemType && f.item_id === itemId)));
+        if (error) throw error;
+        setFavorites(prev => {
+          const updated = prev.filter(f => !(f.item_type === itemType && f.item_id === itemId));
+          writeLocal(updated);
+          return updated;
+        });
       } else {
-        const { data } = await supabase.from('favorites').insert({
+        const { data, error } = await supabase.from('favorites').insert({
           user_id: user.id,
           item_type: itemType,
           item_id: itemId,
           item_data: itemData,
         }).select().single();
-        if (data) setFavorites(prev => [data, ...prev]);
+        if (error) throw error;
+        if (data) {
+          setFavorites(prev => {
+            const updated = [data, ...prev];
+            writeLocal(updated);
+            return updated;
+          });
+        }
       }
     } catch (e) {
-      console.error('toggleFavorite error:', e);
+      console.error('toggleFavorite Supabase error, using localStorage:', e);
+      // Supabase 失敗 → localStorage フォールバック
+      setFavorites(prev => {
+        let updated;
+        if (exists) {
+          updated = prev.filter(f => !(f.item_type === itemType && f.item_id === itemId));
+        } else {
+          updated = [{ item_type: itemType, item_id: itemId, item_data: itemData, created_at: new Date().toISOString() }, ...prev];
+        }
+        writeLocal(updated);
+        return updated;
+      });
     }
-  }, [user, isAuthenticated, isFavorite]);
+  }, [user, isAuthenticated, isFavorite, isPremium, favorites.length, setShowPaywall, setPaywallReason, writeLocal]);
 
-  return { favorites, toggleFavorite, isFavorite, loading, fetchFavorites };
+  return { favorites, toggleFavorite, isFavorite, loading, fetchFavorites, remaining: isPremium ? null : Math.max(0, FAVORITE_LIMIT_FREE - favorites.length) };
 }
 
 // ---------- useSubscription フック ----------
@@ -3512,97 +3553,99 @@ function ShareTab() {
   };
 
   return (
-    <div
-      ref={feedRef}
-      className="fade-in"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ position: 'relative', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-    >
-      {/* プルダウンリフレッシュインジケーター */}
-      {(pullY > 0 || refreshing) && (
+    <div className="fade-in" style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+      {/* スクロール領域 */}
+      <div
+        ref={feedRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+      >
+        {/* プルダウンリフレッシュインジケーター */}
+        {(pullY > 0 || refreshing) && (
+          <div style={{
+            height: refreshing ? 50 : pullY, overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: refreshing ? 'none' : 'height 0.15s ease',
+            background: COLORS.bg,
+          }}>
+            <div style={{
+              fontSize: 13, color: COLORS.textLight, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              {refreshing ? (
+                <>
+                  <span style={{ animation: 'loadingPulse 1s infinite' }}>🔄</span>
+                  更新中...
+                </>
+              ) : pullY > 50 ? '↑ 離して更新' : '↓ 引っ張って更新'}
+            </div>
+          </div>
+        )}
+
+        <Header title="📷 もぐもぐシェア" subtitle="みんなの離乳食をシェアしよう" />
+
+        {/* フィルターバー */}
         <div style={{
-          height: refreshing ? 50 : pullY, overflow: 'hidden',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: refreshing ? 'none' : 'height 0.15s ease',
-          background: COLORS.bg,
+          display: 'flex', gap: 6, overflowX: 'auto', padding: `${SPACE.sm + 2}px ${SPACE.lg}px`,
+          background: '#fff', borderBottom: `1px solid ${COLORS.border}`,
+          WebkitOverflowScrolling: 'touch',
         }}>
-          <div style={{
-            fontSize: 13, color: COLORS.textLight, fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            {refreshing ? (
-              <>
-                <span style={{ animation: 'loadingPulse 1s infinite' }}>🔄</span>
-                更新中...
-              </>
-            ) : pullY > 50 ? '↑ 離して更新' : '↓ 引っ張って更新'}
-          </div>
+          {SHARE_FILTERS.map((f) => (
+            <button className="tap-scale" key={f.id} onClick={() => setFilter(f.id)} style={{
+              background: filter === f.id
+                ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
+                : '#fff',
+              color: filter === f.id ? '#fff' : COLORS.text,
+              border: filter === f.id ? 'none' : `1px solid ${COLORS.border}`,
+              borderRadius: 20, padding: `6px ${SPACE.lg}px`, fontSize: FONT.sm, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>{f.label}</button>
+          ))}
         </div>
-      )}
 
-      <Header title="📷 もぐもぐシェア" subtitle="みんなの離乳食をシェアしよう" />
+        {/* フィード */}
+        <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px 0` }}>
+          {loadingPosts && allPosts.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ fontSize: 32, marginBottom: 8, animation: 'loadingPulse 1s infinite' }}>🍽️</div>
+              <div style={{ fontSize: 13, color: COLORS.textLight }}>投稿を読み込み中...</div>
+            </div>
+          )}
+          {filteredPosts.length > 0 ? (
+            filteredPosts.map((post, i) => (
+              <React.Fragment key={post.id}>
+                <SharePostCard post={post} />
+                {(i + 1) % 4 === 0 && <LargeAdCard ad={getAd(7 + Math.floor(i / 4))} />}
+              </React.Fragment>
+            ))
+          ) : !loadingPosts ? (
+            <div style={{
+              textAlign: 'center', padding: `50px ${SPACE.xl}px`,
+              background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
+            }}>
+              <div style={{ fontSize: 50, marginBottom: SPACE.md }}>📭</div>
+              <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>
+                投稿がありません
+              </div>
+              <div style={{ fontSize: FONT.sm, color: COLORS.textLight }}>
+                フィルタを変更してみてください
+              </div>
+            </div>
+          ) : null}
 
-      {/* フィルターバー */}
-      <div style={{
-        display: 'flex', gap: 6, overflowX: 'auto', padding: `${SPACE.sm + 2}px ${SPACE.lg}px`,
-        background: '#fff', borderBottom: `1px solid ${COLORS.border}`,
-        WebkitOverflowScrolling: 'touch',
-      }}>
-        {SHARE_FILTERS.map((f) => (
-          <button className="tap-scale" key={f.id} onClick={() => setFilter(f.id)} style={{
-            background: filter === f.id
-              ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
-              : '#fff',
-            color: filter === f.id ? '#fff' : COLORS.text,
-            border: filter === f.id ? 'none' : `1px solid ${COLORS.border}`,
-            borderRadius: 20, padding: `6px ${SPACE.lg}px`, fontSize: FONT.sm, fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
-          }}>{f.label}</button>
-        ))}
+          {allPosts.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 12, color: COLORS.textLight }}>
+              すべての投稿を表示しました
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* フィード */}
-      <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px 0` }}>
-        {loadingPosts && allPosts.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 32, marginBottom: 8, animation: 'loadingPulse 1s infinite' }}>🍽️</div>
-            <div style={{ fontSize: 13, color: COLORS.textLight }}>投稿を読み込み中...</div>
-          </div>
-        )}
-        {filteredPosts.length > 0 ? (
-          filteredPosts.map((post, i) => (
-            <React.Fragment key={post.id}>
-              <SharePostCard post={post} />
-              {(i + 1) % 4 === 0 && <LargeAdCard ad={getAd(7 + Math.floor(i / 4))} />}
-            </React.Fragment>
-          ))
-        ) : !loadingPosts ? (
-          <div style={{
-            textAlign: 'center', padding: `50px ${SPACE.xl}px`,
-            background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
-          }}>
-            <div style={{ fontSize: 50, marginBottom: SPACE.md }}>📭</div>
-            <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>
-              投稿がありません
-            </div>
-            <div style={{ fontSize: FONT.sm, color: COLORS.textLight }}>
-              フィルタを変更してみてください
-            </div>
-          </div>
-        ) : null}
-
-        {allPosts.length > 0 && (
-          <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 12, color: COLORS.textLight }}>
-            すべての投稿を表示しました
-          </div>
-        )}
-      </div>
-
-      {/* 新規投稿FAB */}
+      {/* 新規投稿FAB（スクロール領域の外） */}
       <button className="tap-scale" onClick={() => { if (tryPost()) setShowNewPost(true); }} style={{
-        position: 'fixed', bottom: 90, right: 20,
+        position: 'absolute', bottom: 20, right: 20,
         width: 54, height: 54, borderRadius: '50%', border: 'none',
         background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
         color: '#fff', fontSize: 26, cursor: 'pointer',
