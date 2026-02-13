@@ -180,27 +180,41 @@ function PremiumProvider({ children }) {
   const [isPremium, setIsPremium] = useState(() => {
     try { return localStorage.getItem('mogumogu_premium') === 'true'; } catch { return false; }
   });
-  useEffect(() => {
-    if (!user) { setIsPremium(false); return; }
+  const [premiumVersion, setPremiumVersion] = useState(0);
+
+  const refreshPremium = useCallback(() => {
+    setPremiumVersion((v) => v + 1);
+  }, []);
+
+  const checkPremiumStatus = useCallback(async () => {
+    if (!user) { setIsPremium(false); return false; }
     // subscriptions テーブルから判定
-    supabase
+    const { data } = await supabase
       .from('subscriptions')
       .select('status')
       .eq('user_id', user.id)
-      .single()
-      .then(({ data }) => {
-        const active = data?.status === 'active' || data?.status === 'trialing';
-        setIsPremium(active);
-        localStorage.setItem('mogumogu_premium', active.toString());
-      })
-      .catch(() => {
-        // subscriptions テーブルがなければ users テーブルにフォールバック
-        if (userProfile) {
-          setIsPremium(userProfile.is_premium === true);
-          localStorage.setItem('mogumogu_premium', (userProfile.is_premium === true).toString());
-        }
-      });
-  }, [user, userProfile]);
+      .single();
+    if (data) {
+      const active = data.status === 'active' || data.status === 'trialing';
+      setIsPremium(active);
+      localStorage.setItem('mogumogu_premium', active.toString());
+      return active;
+    }
+    // フォールバック: users テーブル
+    const { data: u } = await supabase
+      .from('users')
+      .select('is_premium')
+      .eq('id', user.id)
+      .single();
+    const active = u?.is_premium === true;
+    setIsPremium(active);
+    localStorage.setItem('mogumogu_premium', active.toString());
+    return active;
+  }, [user]);
+
+  useEffect(() => {
+    checkPremiumStatus();
+  }, [checkPremiumStatus, userProfile, premiumVersion]);
   const [searchCount, setSearchCount] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('mogumogu_usage') || '{}');
@@ -289,6 +303,7 @@ function PremiumProvider({ children }) {
       searchCount, recipeGenCount, commentCount,
       trySearch, tryRecipeGen, tryPost, tryComment,
       showPaywall, setShowPaywall, paywallReason, setPaywallReason,
+      refreshPremium, checkPremiumStatus,
     }}>
       {children}
     </PremiumContext.Provider>
@@ -4415,11 +4430,36 @@ function PremiumScreen({ onClose }) {
 
 // ---------- プレミアム登録成功画面 ----------
 function PremiumSuccessScreen({ onClose }) {
-  const { subscription } = useSubscription();
+  const { subscription, refetch } = useSubscription();
+  const { isPremium, refreshPremium } = usePremium();
+  const [activating, setActivating] = useState(!isPremium);
+
+  // サブスクリプション情報をポーリングで取得
+  useEffect(() => {
+    if (!activating) return;
+    let count = 0;
+    const poll = setInterval(async () => {
+      count++;
+      await refetch();
+      await refreshPremium();
+      if (count >= 15) clearInterval(poll);
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [activating, refetch, refreshPremium]);
+
+  // isPremium が true になったらポーリング停止
+  useEffect(() => {
+    if (isPremium) setActivating(false);
+  }, [isPremium]);
 
   const trialEndDate = subscription?.trial_end
     ? new Date(subscription.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
     : '7日後';
+
+  const handleClose = () => {
+    refreshPremium();
+    onClose();
+  };
 
   return (
     <div style={{
@@ -4434,6 +4474,11 @@ function PremiumSuccessScreen({ onClose }) {
         <div style={{ fontSize: 15, color: COLORS.textLight, lineHeight: 1.8, marginBottom: 24 }}>
           7日間の無料トライアルが始まりました
         </div>
+        {activating && (
+          <div style={{ fontSize: 14, color: COLORS.primary, marginBottom: 16 }}>
+            プランを有効化しています...
+          </div>
+        )}
         <div style={{
           background: COLORS.tagBg, borderRadius: 16, padding: '16px 20px',
           marginBottom: 28, border: `1px solid ${COLORS.border}`,
@@ -4441,7 +4486,7 @@ function PremiumSuccessScreen({ onClose }) {
           <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: 4 }}>トライアル終了日</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.primaryDark }}>{trialEndDate}</div>
         </div>
-        <button className="tap-scale" onClick={onClose} style={{
+        <button className="tap-scale" onClick={handleClose} style={{
           width: '100%', padding: 16, borderRadius: 24, border: 'none',
           background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
           color: '#fff', fontSize: 16, fontWeight: 900, cursor: 'pointer',
@@ -4944,6 +4989,7 @@ const PROTECTED_TABS = ['share', 'recipe', 'settings'];
 
 function App() {
   const { loading, authScreen, setAuthScreen, isAuthenticated, fetchUserProfile, user } = useAuth();
+  const { checkPremiumStatus, refreshPremium } = usePremium();
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
@@ -4954,24 +5000,28 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const premium = params.get('premium');
-    if (premium === 'success') {
-      setPremiumScreen('success');
-      if (user) {
-        setTimeout(() => { fetchUserProfile(user.id); }, 2000);
-      }
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (premium === 'cancel') {
-      setCheckoutStatus('cancel');
-      window.history.replaceState({}, '', window.location.pathname);
-      setTimeout(() => setCheckoutStatus(null), 4000);
-    }
-    // ?checkout= の旧形式もサポート
     const checkout = params.get('checkout');
-    if (checkout === 'success') {
+    const isSuccess = premium === 'success' || checkout === 'success';
+    const isCancel = premium === 'cancel' || checkout === 'cancel';
+
+    if (isSuccess) {
       setPremiumScreen('success');
-      if (user) { setTimeout(() => { fetchUserProfile(user.id); }, 2000); }
       window.history.replaceState({}, '', window.location.pathname);
-    } else if (checkout === 'cancel') {
+      // Webhook が反映されるまでポーリング（2秒間隔、最大30秒）
+      if (user) {
+        let attempts = 0;
+        const maxAttempts = 15;
+        const poll = setInterval(async () => {
+          attempts++;
+          const active = await checkPremiumStatus();
+          if (active || attempts >= maxAttempts) {
+            clearInterval(poll);
+            fetchUserProfile(user.id);
+          }
+        }, 2000);
+        return () => clearInterval(poll);
+      }
+    } else if (isCancel) {
       setCheckoutStatus('cancel');
       window.history.replaceState({}, '', window.location.pathname);
       setTimeout(() => setCheckoutStatus(null), 4000);
@@ -4981,9 +5031,13 @@ function App() {
       setActiveTab('settings');
       setDisplayedTab('settings');
       window.history.replaceState({}, '', window.location.pathname);
-      if (user) fetchUserProfile(user.id);
+      if (user) {
+        fetchUserProfile(user.id);
+        refreshPremium();
+      }
     }
-  }, [user, fetchUserProfile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleTabChange = useCallback((newTab) => {
     if (newTab === activeTab || isTransitioning) return;
@@ -5072,7 +5126,7 @@ function App() {
           <PremiumScreen onClose={() => setPremiumScreen(null)} />
         )}
         {premiumScreen === 'success' && (
-          <PremiumSuccessScreen onClose={() => { setPremiumScreen(null); setActiveTab('home'); }} />
+          <PremiumSuccessScreen onClose={() => { refreshPremium(); setPremiumScreen(null); setActiveTab('home'); }} />
         )}
 
         {/* キャンセルバナー */}
