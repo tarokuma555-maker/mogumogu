@@ -1319,21 +1319,21 @@ const POPULAR_COMBOS = [
 
 // ---------- 広告データ（アフィリエイト） ----------
 const BANNER_ADS = [
-  { id: 'ad-oisix', title: '🥬 Oisix おためしセット', description: '離乳食にも使える有機野菜をお試し', category: '食材宅配', gradient: 'linear-gradient(135deg, #81C784, #388E3C)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8A+E0A65U+1YGO+6VCBM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8A+E0A65U+1YGO+6VCBM' },
-  { id: 'ad-premium-water', title: '🚰 プレミアムウォーター', description: '赤ちゃんのミルク作りに最適なお水', category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #4FC3F7, #0288D1)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ' },
-  { id: 'ad-combi', title: '👶 コンビ公式', description: 'ベビーカー・チャイルドシートの定番', category: 'ベビー用品', gradient: 'linear-gradient(135deg, #F48FB1, #E91E63)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+5CX82+450Q+669JM', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+5CX82+450Q+669JM' },
-  { id: 'ad-belta', title: '💊 ベルタ葉酸サプリ', description: '妊娠中・授乳中のママに', category: 'ママ向けサプリ', gradient: 'linear-gradient(135deg, #F48FB1, #C2185B)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI' },
-  { id: 'ad-famm', title: '📸 Famm 出張撮影', description: '家族の思い出をプロが撮影', category: '育児サービス', gradient: 'linear-gradient(135deg, #FFAB91, #FF5722)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q' },
-  { id: 'ad-sweet-mommy', title: '🤱 スウィートマミー', description: 'おしゃれな授乳服・マタニティウェア', category: 'マタニティ・ベビー', gradient: 'linear-gradient(135deg, #F8BBD0, #EC407A)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6' },
-  { id: 'ad-oken-water', title: '💧 オーケンウォーター', description: '赤ちゃんにやさしい天然水', category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #80DEEA, #00ACC1)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE' },
-  { id: 'ad-ed-inter', title: '🧩 エド・インター 知育おもちゃ', description: '木のぬくもり知育おもちゃ', category: '知育玩具', gradient: 'linear-gradient(135deg, #A5D6A7, #43A047)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+36B8XE+4XVW+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+36B8XE+4XVW+5YJRM' },
-  { id: 'ad-marutomo', title: '🐟 マルトモ だし・食品', description: '赤ちゃんの離乳食にも安心のおだし', category: '食品', gradient: 'linear-gradient(135deg, #FFB74D, #F57C00)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+11IBW2+5CTE+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+11IBW2+5CTE+5YJRM' },
-  { id: 'ad-skater', title: '🍽️ スケーター ベビー食器', description: 'かわいいベビー食器・お弁当箱', category: 'ベビー食器', gradient: 'linear-gradient(135deg, #80CBC4, #00897B)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+33XIIA+54ME+5YJRM', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+33XIIA+54ME+5YJRM' },
-  { id: 'ad-theatre', title: '🌟 テアトルアカデミー', description: '赤ちゃんモデル・オーディション', category: '赤ちゃんモデル', gradient: 'linear-gradient(135deg, #FFE082, #FFA000)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A', impUrl: 'https://www15.a8.net/0.gif?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A' },
-  { id: 'ad-drobe', title: '👗 DROBE パーソナルスタイリング', description: '忙しいママにプロがコーデ提案', category: 'ファッション', gradient: 'linear-gradient(135deg, #CE93D8, #7B1FA2)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+1U34XE+4GV4+5YJRM', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+1U34XE+4GV4+5YJRM' },
-  { id: 'ad-onigo', title: '🛒 OniGO 即配スーパー', description: '離乳食の食材を最短10分でお届け', category: '即配スーパー', gradient: 'linear-gradient(135deg, #80CBC4, #009688)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM' },
-  { id: 'ad-bellvie', title: '🎁 ベルビー 出産祝い', description: '出産祝い・名入れギフト', category: 'ギフト', gradient: 'linear-gradient(135deg, #FFAB91, #E64A19)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4NW9DE+3SJA+60OXE', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+4NW9DE+3SJA+60OXE' },
-  { id: 'ad-kimuratan', title: '👕 キムラタン ベビー服', description: 'かわいいベビー服・子供服', category: 'ベビー服', gradient: 'linear-gradient(135deg, #CE93D8, #AB47BC)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+448YEQ+1KUO+64C3M', impUrl: 'https://www17.a8.net/0.gif?a8mat=4AXA8B+448YEQ+1KUO+64C3M' },
+  { id: 'ad-oisix', title: 'Oisix おためしセット', icon: '🥬', description: '離乳食にも使える有機野菜をお試し', features: ['有機・無添加の安心食材', '離乳食レシピ付き', '全額返金保証'], category: '食材宅配', gradient: 'linear-gradient(135deg, #81C784, #2E7D32)', ctaText: 'おためしセットを見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8A+E0A65U+1YGO+6VCBM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8A+E0A65U+1YGO+6VCBM', imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop' },
+  { id: 'ad-premium-water', title: 'プレミアムウォーター', icon: '🚰', description: '赤ちゃんのミルク作りに最適なお水', features: ['天然水100%', '赤ちゃんのミルクに安心', 'ボトル配送で買い物いらず'], category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #4FC3F7, #0277BD)', ctaText: '無料で資料請求する', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ', imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=600&h=400&fit=crop' },
+  { id: 'ad-combi', title: 'コンビ公式オンラインショップ', icon: '👶', description: 'ベビーカー・チャイルドシートの定番ブランド', features: ['公式だから安心保証', '限定カラーあり', '送料無料キャンペーン中'], category: 'ベビー用品', gradient: 'linear-gradient(135deg, #F48FB1, #C2185B)', ctaText: '公式ショップを見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+5CX82+450Q+669JM', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+5CX82+450Q+669JM', imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&h=400&fit=crop' },
+  { id: 'ad-belta', title: 'ベルタ葉酸サプリ', icon: '💊', description: '妊娠中・授乳中のママの栄養サポート', features: ['葉酸480μg配合', '無添加・国内製造', '管理栄養士監修'], category: 'ママ向けサプリ', gradient: 'linear-gradient(135deg, #CE93D8, #7B1FA2)', ctaText: '詳細を見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI', imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&h=400&fit=crop' },
+  { id: 'ad-famm', title: 'Famm 出張撮影', icon: '📸', description: '家族の思い出をプロのカメラマンが撮影', features: ['全国対応', '75カット以上の写真データ', '平日8,800円〜'], category: '出張撮影', gradient: 'linear-gradient(135deg, #FFAB91, #E64A19)', ctaText: '無料説明会に参加する', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q', imageUrl: 'https://images.unsplash.com/photo-1476703993599-0035a21b17a9?w=600&h=400&fit=crop' },
+  { id: 'ad-sweet-mommy', title: 'スウィートマミー', icon: '🤱', description: 'おしゃれな授乳服・マタニティウェア専門店', features: ['授乳しやすいデザイン', '産前産後ずっと着られる', 'セール開催中'], category: 'マタニティ', gradient: 'linear-gradient(135deg, #F8BBD0, #D81B60)', ctaText: 'ショップを見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6', imageUrl: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&h=400&fit=crop' },
+  { id: 'ad-oken-water', title: 'オーケンウォーター', icon: '💧', description: '赤ちゃんにやさしい天然水のウォーターサーバー', features: ['初期費用0円', '天然水を毎月届け', 'チャイルドロック付き'], category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #80DEEA, #00838F)', ctaText: '詳しく見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE', imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=600&h=400&fit=crop' },
+  { id: 'ad-ed-inter', title: 'エド・インター 知育おもちゃ', icon: '🧩', description: '木のぬくもりを感じる知育おもちゃ', features: ['天然木使用', '安全塗料で安心', '出産祝いにも人気'], category: '知育玩具', gradient: 'linear-gradient(135deg, #A5D6A7, #2E7D32)', ctaText: 'おもちゃを見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+36B8XE+4XVW+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+36B8XE+4XVW+5YJRM', imageUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=600&h=400&fit=crop' },
+  { id: 'ad-marutomo', title: 'マルトモ だし・食品', icon: '🐟', description: '赤ちゃんの離乳食にも安心のおだし', features: ['国産素材100%', '化学調味料無添加', '離乳食レシピ公開中'], category: '食品', gradient: 'linear-gradient(135deg, #FFB74D, #E65100)', ctaText: '商品を見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+11IBW2+5CTE+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+11IBW2+5CTE+5YJRM', imageUrl: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&h=400&fit=crop' },
+  { id: 'ad-skater', title: 'スケーター ベビー食器', icon: '🍽️', description: 'かわいいベビー食器・お弁当箱', features: ['キャラクターデザイン豊富', '食洗機対応', 'BPAフリーで安心'], category: 'ベビー食器', gradient: 'linear-gradient(135deg, #80CBC4, #00695C)', ctaText: '食器を見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+33XIIA+54ME+5YJRM', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+33XIIA+54ME+5YJRM', imageUrl: 'https://images.unsplash.com/photo-1590004987778-bece5c9adab6?w=600&h=400&fit=crop' },
+  { id: 'ad-theatre', title: 'テアトルアカデミー', icon: '🌟', description: '赤ちゃんモデル・タレントオーディション', features: ['0歳から応募OK', '無料オーディション', 'テレビCM出演実績多数'], category: '赤ちゃんモデル', gradient: 'linear-gradient(135deg, #FFE082, #F57F17)', ctaText: 'オーディションに応募', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A', impUrl: 'https://www15.a8.net/0.gif?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A', imageUrl: 'https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=600&h=400&fit=crop' },
+  { id: 'ad-drobe', title: 'DROBE パーソナルスタイリング', icon: '👗', description: '忙しいママにプロがコーデ提案', features: ['自宅で試着OK', 'スタイリスト厳選', '気に入らなければ返送無料'], category: 'ファッション', gradient: 'linear-gradient(135deg, #CE93D8, #6A1B9A)', ctaText: '無料で始める', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+1U34XE+4GV4+5YJRM', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+1U34XE+4GV4+5YJRM', imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&h=400&fit=crop' },
+  { id: 'ad-onigo', title: 'OniGO 即配スーパー', icon: '🛒', description: '離乳食の食材を最短10分でお届け', features: ['最短10分で届く', '生鮮食品も新鮮', 'アプリで簡単注文'], category: '即配スーパー', gradient: 'linear-gradient(135deg, #80CBC4, #00796B)', ctaText: 'アプリをダウンロード', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM', imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&h=400&fit=crop' },
+  { id: 'ad-bellvie', title: 'ベルビー 出産祝い', icon: '🎁', description: '名入れギフト・出産祝いの専門店', features: ['名入れ無料', 'ラッピング無料', '最短翌日発送'], category: 'ギフト', gradient: 'linear-gradient(135deg, #FFAB91, #BF360C)', ctaText: 'ギフトを探す', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4NW9DE+3SJA+60OXE', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+4NW9DE+3SJA+60OXE', imageUrl: 'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=600&h=400&fit=crop' },
+  { id: 'ad-kimuratan', title: 'キムラタン ベビー服', icon: '👕', description: 'かわいいベビー服・子供服の通販', features: ['オーガニックコットン', '新生児〜対応', 'セール開催中'], category: 'ベビー服', gradient: 'linear-gradient(135deg, #B39DDB, #4527A0)', ctaText: 'ベビー服を見る', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+448YEQ+1KUO+64C3M', impUrl: 'https://www17.a8.net/0.gif?a8mat=4AXA8B+448YEQ+1KUO+64C3M', imageUrl: 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=600&h=400&fit=crop' },
 ];
 
 // ページ読み込み時にシャッフル
@@ -1350,9 +1350,7 @@ function getAd(index) {
   return shuffledAds[Math.floor(index) % shuffledAds.length];
 }
 
-// 広告ヘルパー: タイトルから絵文字とテキストを抽出
-function adEmoji(ad) { return ad.title.match(/^./u)?.[0] || '📢'; }
-function adName(ad) { return ad.title.replace(/^.\s?/u, ''); }
+// 広告ヘルパー
 function adColor(ad) { return ad.gradient.match(/#[0-9A-Fa-f]{6}/g)?.[1] || '#FF6B35'; }
 
 // 広告インプレッション計測（impUrl ピクセル読み込み）
@@ -1361,11 +1359,6 @@ function trackAdImpression(ad) {
     const img = new Image();
     img.src = ad.impUrl;
   }
-}
-
-// 広告クリック処理
-function handleAdClick(ad) {
-  if (ad.url) window.open(ad.url, '_blank', 'noopener,noreferrer');
 }
 
 // ---------- スタイル ----------
@@ -1484,29 +1477,29 @@ function BannerAd({ ad, style: extraStyle }) {
   if (isPremium || dismissed || !ad) return null;
   const color = adColor(ad);
   return (
-    <div className="tap-scale" onClick={() => handleAdClick(ad)} style={{
-      background: '#fff', borderRadius: 18, border: `1px solid ${COLORS.border}`,
-      padding: `${SPACE.md}px ${SPACE.lg}px`, display: 'flex', alignItems: 'center', gap: SPACE.md,
-      position: 'relative', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: 'pointer', ...extraStyle,
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 12, background: `${color}15`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0,
-      }}>{adEmoji(ad)}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <span style={{ fontWeight: 700, fontSize: FONT.sm, color: COLORS.text }}>{adName(ad)}</span>
-          <span style={{
-            color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
-          }}>PR</span>
+    <div style={{ position: 'relative', ...extraStyle }}>
+      <a href={ad.url} target="_blank" rel="noopener noreferrer" className="tap-scale" style={{
+        background: '#fff', borderRadius: 18, border: `1px solid ${COLORS.border}`,
+        padding: `${SPACE.md}px ${SPACE.lg}px`, display: 'flex', alignItems: 'center', gap: SPACE.md,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: 'pointer', textDecoration: 'none', color: 'inherit',
+      }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, background: `${color}15`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0,
+        }}>{ad.icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontWeight: 700, fontSize: FONT.sm, color: COLORS.text }}>{ad.title}</span>
+            <span style={{ color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600 }}>PR</span>
+          </div>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.4,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.description}</div>
         </div>
-        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.4,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.description}</div>
-      </div>
-      <button onClick={(e) => { e.stopPropagation(); setDismissed(true); }} style={{
+      </a>
+      <button onClick={() => setDismissed(true)} style={{
         position: 'absolute', top: 6, right: 8, background: 'none', border: 'none',
         fontSize: FONT.sm, color: COLORS.textLight, cursor: 'pointer', padding: SPACE.xs,
-        lineHeight: 1, opacity: 0.5, width: 32, height: 32,
+        lineHeight: 1, opacity: 0.5, width: 32, height: 32, zIndex: 2,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>✕</button>
     </div>
@@ -1520,108 +1513,143 @@ function BannerAdLarge({ ad, style: extraStyle }) {
   if (isPremium || dismissed || !ad) return null;
   const color = adColor(ad);
   return (
-    <div style={{
-      background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
-      overflow: 'hidden', position: 'relative',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.04)', cursor: 'pointer', ...extraStyle,
-    }} onClick={() => handleAdClick(ad)}>
-      <button onClick={(e) => { e.stopPropagation(); setDismissed(true); }} style={{
+    <div style={{ position: 'relative', ...extraStyle }}>
+      <a href={ad.url} target="_blank" rel="noopener noreferrer" style={{
+        display: 'block', background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
+        overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', cursor: 'pointer',
+        textDecoration: 'none', color: 'inherit',
+      }}>
+        <div style={{
+          background: `${color}12`,
+          padding: `${SPACE.xl}px ${SPACE.lg}px ${SPACE.lg}px`, position: 'relative',
+          textAlign: 'center',
+        }}>
+          <span style={{
+            position: 'absolute', top: 10, left: 12,
+            color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
+          }}>PR</span>
+          <div style={{ fontSize: 38, marginBottom: 6 }}>{ad.icon}</div>
+          <div style={{ fontSize: FONT.lg, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>{ad.title}</div>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5 }}>{ad.description}</div>
+        </div>
+        <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginBottom: SPACE.sm }}>{ad.category}</div>
+          <span style={{
+            display: 'inline-block', background: ad.gradient,
+            color: '#fff', borderRadius: 12, padding: '10px 24px',
+            fontWeight: 700, fontSize: FONT.base,
+            boxShadow: `0 2px 8px ${color}22`,
+          }}>{ad.ctaText || '詳しく見る'}</span>
+        </div>
+      </a>
+      <button onClick={() => setDismissed(true)} style={{
         position: 'absolute', top: 10, right: 12, background: 'rgba(0,0,0,0.04)',
         border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: FONT.sm,
         color: COLORS.textLight, cursor: 'pointer', zIndex: 2,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>✕</button>
-      <div style={{
-        background: `${color}12`,
-        padding: `${SPACE.xl}px ${SPACE.lg}px ${SPACE.lg}px`, position: 'relative',
-        textAlign: 'center',
-      }}>
-        <span style={{
-          position: 'absolute', top: 10, left: 12,
-          color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
-        }}>PR</span>
-        <div style={{ fontSize: 38, marginBottom: 6 }}>{adEmoji(ad)}</div>
-        <div style={{ fontSize: FONT.lg, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>{adName(ad)}</div>
-        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5 }}>{ad.description}</div>
-      </div>
-      <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px`, textAlign: 'center' }}>
-        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginBottom: SPACE.sm }}>{ad.category}</div>
-        <button className="tap-scale" onClick={(e) => { e.stopPropagation(); handleAdClick(ad); }} style={{
-          background: ad.gradient,
-          color: '#fff', border: 'none', borderRadius: 12, padding: '10px 24px',
-          fontWeight: 700, fontSize: FONT.base, cursor: 'pointer', fontFamily: 'inherit',
-          boxShadow: `0 2px 8px ${color}22`,
-        }}>詳しく見る</button>
-      </div>
     </div>
   );
 }
 
 function AdCard({ ad, cardHeight }) {
   const { isPremium } = usePremium();
+  const [imageLoaded, setImageLoaded] = useState(false);
   useEffect(() => { if (ad && !isPremium) trackAdImpression(ad); }, [ad, isPremium]);
   if (isPremium || !ad) return null;
   return (
-    <div
-      onClick={() => handleAdClick(ad)}
+    <a
+      href={ad.url}
+      target="_blank"
+      rel="noopener noreferrer"
       style={{
-        width: '100%', height: cardHeight || 'calc(100vh - 60px)',
-        background: ad.gradient, scrollSnapAlign: 'start',
-        position: 'relative', cursor: 'pointer',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: 24, flexShrink: 0,
+        display: 'block', width: '100%', height: cardHeight || 'calc(100vh - 60px)',
+        scrollSnapAlign: 'start', position: 'relative', textDecoration: 'none',
+        color: '#fff', background: ad.gradient, overflow: 'hidden',
+        WebkitTapHighlightColor: 'transparent', flexShrink: 0,
       }}
     >
-      {/* PRバッジ */}
+      {/* PRバッジ（左上） */}
       <div style={{
-        position: 'absolute', top: 16, left: 16,
-        background: 'rgba(0,0,0,0.5)',
-        color: '#fff', fontSize: 11,
-        padding: '4px 10px', borderRadius: 4,
+        position: 'absolute', top: 12, left: 12, zIndex: 2,
+        background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 'bold',
+        padding: '3px 8px', borderRadius: 4, letterSpacing: 1,
       }}>PR</div>
 
-      {/* 広告コンテンツ */}
+      {/* カテゴリバッジ（右上） */}
       <div style={{
-        textAlign: 'center', color: '#fff',
-        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+        position: 'absolute', top: 12, right: 12, zIndex: 2,
+        background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: 11,
+        padding: '4px 10px', borderRadius: 12, backdropFilter: 'blur(4px)',
+      }}>{ad.category}</div>
+
+      {/* 商品イメージ写真（上部38%） */}
+      <div style={{ width: '100%', height: '38%', overflow: 'hidden', position: 'relative' }}>
+        <img
+          src={ad.imageUrl}
+          alt={ad.title}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => { e.target.style.display = 'none'; }}
+          style={{
+            width: '100%', height: '100%', objectFit: 'cover',
+            opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.3s ease',
+          }}
+        />
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
+          background: `linear-gradient(transparent, ${ad.gradient.match(/#[A-Fa-f0-9]{6}/g)?.[1] || '#000'})`,
+        }} />
+      </div>
+
+      {/* 広告コンテンツ（下部） */}
+      <div style={{
+        padding: '16px 24px', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', textAlign: 'center',
+        textShadow: '0 1px 3px rgba(0,0,0,0.3)',
       }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>
-          {adEmoji(ad)}
-        </div>
+        <div style={{ fontSize: 36, marginBottom: 4 }}>{ad.icon}</div>
+        <div style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 8, lineHeight: 1.3 }}>{ad.title}</div>
+        <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 16, lineHeight: 1.5 }}>{ad.description}</div>
+
+        {/* 特徴リスト */}
+        {ad.features && (
+          <div style={{
+            marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 6,
+            alignItems: 'flex-start', background: 'rgba(255,255,255,0.15)',
+            borderRadius: 12, padding: '12px 20px', backdropFilter: 'blur(4px)',
+            width: '100%', maxWidth: 300,
+          }}>
+            {ad.features.map((feature, i) => (
+              <div key={i} style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 18, height: 18, background: 'rgba(255,255,255,0.3)',
+                  borderRadius: '50%', fontSize: 10,
+                }}>✓</span>
+                {feature}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* CTAボタン */}
         <div style={{
-          fontSize: 24, fontWeight: 'bold',
-          marginBottom: 12, lineHeight: 1.3,
+          background: '#fff', color: '#333', borderRadius: 30, padding: '14px 40px',
+          fontSize: 16, fontWeight: 'bold', boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
         }}>
-          {adName(ad)}
-        </div>
-        <div style={{
-          fontSize: 16, opacity: 0.9,
-          marginBottom: 32,
-        }}>
-          {ad.description}
-        </div>
-        <div style={{
-          background: '#fff', color: '#333',
-          borderRadius: 30, padding: '14px 36px',
-          fontSize: 16, fontWeight: 'bold',
-          display: 'inline-block',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        }}>
-          詳しく見る →
+          {ad.ctaText || '詳しく見る'} <span style={{ fontSize: 18 }}>→</span>
         </div>
       </div>
 
-      {/* カテゴリバッジ */}
+      {/* 下部ヒント */}
       <div style={{
-        position: 'absolute', bottom: 24,
-        background: 'rgba(255,255,255,0.2)',
-        color: '#fff', fontSize: 12,
-        padding: '6px 14px', borderRadius: 16,
+        position: 'absolute', bottom: 8, left: 0, right: 0,
+        textAlign: 'center', fontSize: 11, opacity: 0.5,
       }}>
-        {ad.category}
+        ↑ スワイプして次の動画へ
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -4109,7 +4137,7 @@ function AdAnalyticsPanel() {
       });
 
       const result = BANNER_ADS.map(ad => ({
-        id: ad.id, name: adName(ad), emoji: adEmoji(ad),
+        id: ad.id, name: ad.title, emoji: ad.icon,
         impressions: map[ad.id]?.impressions || 0,
         clicks: map[ad.id]?.clicks || 0,
         ctr: map[ad.id]?.impressions > 0
