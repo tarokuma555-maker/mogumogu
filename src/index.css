@@ -103,6 +103,12 @@ html {
   100% { transform: translateX(-50%); }
 }
 
+/* ====== タイピングアニメーション ====== */
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
+
 /* ====== コンテンツフェードイン ====== */
 .fade-in {
   animation: fadeInUp 0.3s ease-out both;

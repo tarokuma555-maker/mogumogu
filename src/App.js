@@ -322,6 +322,83 @@ function usePremium() {
   return useContext(PremiumContext);
 }
 
+// ---------- useFavorites フック ----------
+function useFavorites() {
+  const { user, isAuthenticated } = useAuth();
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchFavorites = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      // 未ログイン: localStorage から読み込み
+      try {
+        const stored = JSON.parse(localStorage.getItem('mogumogu_favorites') || '[]');
+        setFavorites(stored);
+      } catch { setFavorites([]); }
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      setFavorites(data || []);
+    } catch (e) {
+      console.error('fetchFavorites error:', e);
+    }
+    setLoading(false);
+  }, [user, isAuthenticated]);
+
+  useEffect(() => { fetchFavorites(); }, [fetchFavorites]);
+
+  const isFavorite = useCallback((itemType, itemId) => {
+    return favorites.some(f => f.item_type === itemType && f.item_id === itemId);
+  }, [favorites]);
+
+  const toggleFavorite = useCallback(async (itemType, itemId, itemData = {}) => {
+    const exists = isFavorite(itemType, itemId);
+
+    if (!isAuthenticated || !user) {
+      // 未ログイン: localStorage
+      setFavorites(prev => {
+        let updated;
+        if (exists) {
+          updated = prev.filter(f => !(f.item_type === itemType && f.item_id === itemId));
+        } else {
+          updated = [{ item_type: itemType, item_id: itemId, item_data: itemData, created_at: new Date().toISOString() }, ...prev];
+        }
+        localStorage.setItem('mogumogu_favorites', JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
+
+    try {
+      if (exists) {
+        await supabase.from('favorites').delete()
+          .eq('user_id', user.id)
+          .eq('item_type', itemType)
+          .eq('item_id', itemId);
+        setFavorites(prev => prev.filter(f => !(f.item_type === itemType && f.item_id === itemId)));
+      } else {
+        const { data } = await supabase.from('favorites').insert({
+          user_id: user.id,
+          item_type: itemType,
+          item_id: itemId,
+          item_data: itemData,
+        }).select().single();
+        if (data) setFavorites(prev => [data, ...prev]);
+      }
+    } catch (e) {
+      console.error('toggleFavorite error:', e);
+    }
+  }, [user, isAuthenticated, isFavorite]);
+
+  return { favorites, toggleFavorite, isFavorite, loading, fetchFavorites };
+}
+
 // ---------- useSubscription フック ----------
 function useSubscription() {
   const { user } = useAuth();
@@ -1443,9 +1520,9 @@ const styles = {
 // ---------- タブバー ----------
 const TABS = [
   { id: 'home', label: 'ホーム', icon: '🏠' },
-  { id: 'search', label: '検索', icon: '🔍' },
-  { id: 'share', label: 'シェア', icon: '📷' },
   { id: 'recipe', label: 'レシピ', icon: '🍳' },
+  { id: 'ai', label: 'AI相談', icon: '💬' },
+  { id: 'share', label: 'シェア', icon: '📷' },
   { id: 'settings', label: '設定', icon: '⚙️' },
 ];
 
@@ -1718,7 +1795,8 @@ function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
   const [playState, setPlayState] = useState('thumbnail');
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const saved = isFavorite('video', item.id);
   const [descExpanded, setDescExpanded] = useState(false);
   const [likeAnim, setLikeAnim] = useState(false);
   const playTimerRef = useRef(null);
@@ -2015,7 +2093,7 @@ function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
         <ActionBtn
           icon={saved ? '🔖' : '📑'}
           label={saved ? '保存済' : '保存'}
-          onClick={(e) => { e.stopPropagation(); setSaved(!saved); }}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite('video', item.id, { title: item.title, youtube_id: videoId, channel_name: item.channel_name || item.channel, thumbnail_url: thumbnailUrl }); }}
           active={saved}
         />
         {videoId && (
@@ -2807,6 +2885,8 @@ function SharePostCard({ post }) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes_count || 0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const postSaved = isFavorite('share_post', post.id);
   const typeStyle = POST_TYPE_STYLES[post.post_type] || POST_TYPE_STYLES.tip;
   const isRakuten = post.source_name === '楽天レシピ';
   const isYouTube = post.source_name === 'YouTube';
@@ -2898,7 +2978,7 @@ function SharePostCard({ post }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           paddingTop: 12, borderTop: '1px solid #f0f0f0',
         }}>
-          <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <button className="tap-light" onClick={toggleLike} style={{
               background: 'none', border: 'none', fontSize: 13, color: '#888',
               cursor: 'pointer', padding: 0, fontFamily: 'inherit',
@@ -2909,6 +2989,14 @@ function SharePostCard({ post }) {
             <span style={{ fontSize: 13, color: '#888' }}>
               💬 {post.comments_count || 0}
             </span>
+            <button className="tap-light" onClick={() => toggleFavorite('share_post', post.id, { title: post.title, image_url: post.image_url, source_name: post.source_name, source_url: post.source_url })} style={{
+              background: 'none', border: 'none', fontSize: 13,
+              color: postSaved ? '#FF6B35' : '#888',
+              cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              {postSaved ? '🔖' : '📑'} {postSaved ? '保存済' : '保存'}
+            </button>
           </div>
           <div style={{ fontSize: 11, color: '#bbb' }}>
             📌 {post.source_name || 'もぐもぐ'}
@@ -3221,12 +3309,16 @@ function ShareTab() {
 
   const fetchAllPosts = useCallback(async () => {
     setLoadingPosts(true);
-    const [shareRes, userRes] = await Promise.all([
-      supabase.from('share_posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
-      supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
-    ]);
-    setSharePosts((shareRes.data || []).map(p => ({ ...p, _source: 'share' })));
-    setUserPosts((userRes.data || []).map(formatUserPost));
+    try {
+      const [shareRes, userRes] = await Promise.all([
+        fetch(`/api/random-share-posts?limit=${SHARE_PAGE_SIZE}`).then(r => r.ok ? r.json() : { posts: [] }),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
+      ]);
+      setSharePosts((shareRes.posts || []).map(p => ({ ...p, _source: 'share' })));
+      setUserPosts((userRes.data || []).map(formatUserPost));
+    } catch (e) {
+      console.error('fetchAllPosts error:', e);
+    }
     setLoadingPosts(false);
     setRefreshing(false);
   }, []);
@@ -4133,6 +4225,336 @@ function SubscriptionInfo() {
   );
 }
 
+// ---------- AI相談タブ ----------
+function AiConsultationTab() {
+  const { isAuthenticated, setAuthScreen } = useAuth();
+  const { isPremium } = usePremium();
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: 'こんにちは！離乳食や育児について、何でもご相談ください 🍙\n\n月齢に合った食材や調理法、アレルギーのこと、食べない時の対策など、お気軽にどうぞ！' },
+  ]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+
+  const quickQuestions = [
+    { label: '離乳食の進め方', q: '離乳食の進め方を教えてください。今の月齢ではどんな食材が食べられますか？' },
+    { label: 'アレルギーについて', q: 'アレルギーが心配です。新しい食材を始める時の注意点を教えてください。' },
+    { label: '食材の選び方', q: '月齢に合ったおすすめの食材と調理方法を教えてください。' },
+    { label: '食べない時の対策', q: '離乳食を食べてくれない時、どうすればいいですか？' },
+  ];
+
+  const sendMessage = useCallback(async (text) => {
+    if (!text.trim() || sending) return;
+    if (!isAuthenticated) {
+      setAuthScreen('login');
+      return;
+    }
+
+    const userMsg = { role: 'user', content: text.trim() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setSending(true);
+    setError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('セッションが切れました');
+
+      const babyMonth = parseInt(localStorage.getItem('mogumogu_month')) || 6;
+      const allergens = JSON.parse(localStorage.getItem('mogumogu_allergens') || '[]');
+
+      const history = messages.filter(m => m.role === 'user' || m.role === 'assistant').slice(-20);
+
+      const res = await fetch('/api/ai-consultation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          message: text.trim(),
+          baby_month: babyMonth,
+          allergens,
+          history,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'エラーが発生しました');
+      }
+
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch (e) {
+      setError(e.message);
+      setMessages(prev => [...prev, { role: 'assistant', content: `エラーが発生しました: ${e.message}`, isError: true }]);
+    }
+    setSending(false);
+  }, [sending, isAuthenticated, setAuthScreen, messages]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)' }}>
+      <Header title="💬 AI相談" subtitle="離乳食・育児のお悩みに回答" />
+
+      {/* メッセージエリア */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: `0 ${SPACE.md}px ${SPACE.md}px`,
+        WebkitOverflowScrolling: 'touch',
+      }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{
+            display: 'flex',
+            justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            marginBottom: 12,
+          }}>
+            {msg.role === 'assistant' && (
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', marginRight: 8, flexShrink: 0,
+                background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, marginTop: 4,
+              }}>🍙</div>
+            )}
+            <div style={{
+              maxWidth: '80%', padding: '12px 16px', borderRadius: 18,
+              background: msg.role === 'user'
+                ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
+                : msg.isError ? '#FFF3F0' : '#f0f0f0',
+              color: msg.role === 'user' ? '#fff' : msg.isError ? COLORS.danger : '#333',
+              fontSize: FONT.sm, lineHeight: 1.6, whiteSpace: 'pre-wrap',
+              borderBottomRightRadius: msg.role === 'user' ? 4 : 18,
+              borderBottomLeftRadius: msg.role === 'assistant' ? 4 : 18,
+            }}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+
+        {sending && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+            }}>🍙</div>
+            <div style={{
+              padding: '12px 20px', borderRadius: 18, background: '#f0f0f0',
+              borderBottomLeftRadius: 4,
+            }}>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[0, 1, 2].map(j => (
+                  <div key={j} style={{
+                    width: 8, height: 8, borderRadius: '50%', background: '#999',
+                    animation: `typingDot 1.4s infinite ${j * 0.2}s`,
+                  }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && !sending && (
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <button onClick={() => {
+              const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+              if (lastUserMsg) {
+                setMessages(prev => prev.filter(m => !m.isError));
+                sendMessage(lastUserMsg.content);
+              }
+            }} style={{
+              background: 'none', border: `1px solid ${COLORS.primary}`, color: COLORS.primary,
+              borderRadius: 20, padding: '6px 16px', fontSize: 12, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              🔄 もう一度送信
+            </button>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+
+        {/* クイック質問（メッセージが初期のみの場合） */}
+        {messages.length <= 1 && (
+          <div style={{ marginTop: SPACE.md }}>
+            <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 8, fontWeight: 700 }}>
+              よくある質問
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {quickQuestions.map((qq, i) => (
+                <button key={i} onClick={() => sendMessage(qq.q)} style={{
+                  padding: '8px 14px', borderRadius: 20, border: `1px solid ${COLORS.border}`,
+                  background: '#fff', color: '#555', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                  {qq.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 入力エリア */}
+      <form onSubmit={handleSubmit} style={{
+        padding: `${SPACE.sm}px ${SPACE.md}px env(safe-area-inset-bottom, ${SPACE.sm}px)`,
+        borderTop: `1px solid ${COLORS.border}`,
+        background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)',
+        display: 'flex', gap: 8, alignItems: 'flex-end',
+      }}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="質問を入力..."
+          disabled={sending}
+          style={{
+            flex: 1, padding: '10px 16px', borderRadius: 24,
+            border: `1px solid ${COLORS.border}`, fontSize: FONT.sm,
+            fontFamily: 'inherit', outline: 'none', background: '#f5f5f5',
+          }}
+        />
+        <button type="submit" disabled={sending || !input.trim()} style={{
+          width: 40, height: 40, borderRadius: '50%', border: 'none',
+          background: input.trim() && !sending
+            ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
+            : '#ddd',
+          color: '#fff', fontSize: 18, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, transition: 'background 0.2s',
+        }}>
+          ↑
+        </button>
+      </form>
+
+      {!isPremium && (
+        <div style={{
+          textAlign: 'center', fontSize: 10, color: COLORS.textLight,
+          padding: '4px 0', background: '#f9f9f9',
+        }}>
+          無料: 1日3回まで / プレミアムで無制限
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedItemsSection() {
+  const { favorites, toggleFavorite } = useFavorites();
+  const [filter, setFilter] = useState('all');
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return favorites;
+    return favorites.filter(f => f.item_type === filter);
+  }, [favorites, filter]);
+
+  const filters = [
+    { id: 'all', label: '全て' },
+    { id: 'video', label: '動画' },
+    { id: 'share_post', label: '投稿' },
+  ];
+
+  const handleOpen = (fav) => {
+    if (fav.item_type === 'video' && fav.item_data?.youtube_id) {
+      window.open(`https://www.youtube.com/shorts/${fav.item_data.youtube_id}`, '_blank');
+    } else if (fav.item_data?.source_url) {
+      window.open(fav.item_data.source_url, '_blank');
+    }
+  };
+
+  return (
+    <div style={{
+      background: COLORS.card, borderRadius: 18, padding: SPACE.lg,
+      marginBottom: SPACE.xl, border: `1px solid ${COLORS.border}`,
+    }}>
+      <div style={{ fontSize: FONT.lg, fontWeight: 900, marginBottom: SPACE.md }}>
+        🔖 保存したアイテム
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: SPACE.md }}>
+        {filters.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: '6px 14px', borderRadius: 20, border: 'none',
+            background: filter === f.id ? COLORS.primary : '#f0f0f0',
+            color: filter === f.id ? '#fff' : '#666',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: SPACE.xl, color: COLORS.textLight }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📑</div>
+          <div style={{ fontSize: FONT.sm }}>まだ保存したアイテムはありません</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map((fav, i) => (
+            <div key={fav.id || i} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              background: '#f9f9f9', borderRadius: 12, padding: 10,
+              cursor: 'pointer', position: 'relative',
+            }} onClick={() => handleOpen(fav)}>
+              {fav.item_type === 'video' && fav.item_data?.thumbnail_url ? (
+                <img src={fav.item_data.thumbnail_url} alt="" style={{
+                  width: 60, height: 45, borderRadius: 8, objectFit: 'cover',
+                }} />
+              ) : fav.item_data?.image_url ? (
+                <img src={fav.item_data.image_url} alt="" style={{
+                  width: 60, height: 45, borderRadius: 8, objectFit: 'cover',
+                }} />
+              ) : (
+                <div style={{
+                  width: 60, height: 45, borderRadius: 8, background: '#e0e0e0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20,
+                }}>
+                  {fav.item_type === 'video' ? '🎬' : '📄'}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13, fontWeight: 700, color: '#333',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {fav.item_data?.title || '無題'}
+                </div>
+                <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                  {fav.item_type === 'video' ? `🎬 ${fav.item_data?.channel_name || '動画'}` : `📌 ${fav.item_data?.source_name || '投稿'}`}
+                </div>
+              </div>
+              <button onClick={(e) => {
+                e.stopPropagation();
+                toggleFavorite(fav.item_type, fav.item_id);
+              }} style={{
+                background: 'none', border: 'none', fontSize: 16,
+                cursor: 'pointer', padding: 4, color: '#ccc',
+              }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsTab() {
   const { isPremium, setShowPaywall, setPaywallReason, searchCount, recipeGenCount, commentCount } = usePremium();
   const { userProfile, updateProfile, signOut, user } = useAuth();
@@ -4494,6 +4916,9 @@ function SettingsTab() {
           )}
         </div>
 
+        {/* 保存済みアイテム */}
+        <SavedItemsSection />
+
         {/* 保存ボタン */}
         <button
           className="tap-scale"
@@ -4671,7 +5096,7 @@ function OfflineIndicator() {
 }
 
 // ============================================================
-const PROTECTED_TABS = ['share', 'recipe', 'settings'];
+const PROTECTED_TABS = ['share', 'recipe', 'ai', 'settings'];
 
 function App() {
   const { loading, authScreen, setAuthScreen, isAuthenticated, user } = useAuth();
@@ -4762,6 +5187,7 @@ function App() {
       case 'search': return <SearchTab />;
       case 'share': return <ShareTab />;
       case 'recipe': return <RecipeTab />;
+      case 'ai': return <AiConsultationTab />;
       case 'settings': return <SettingsTab />;
       default: return <HomeTab />;
     }
