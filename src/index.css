@@ -4,11 +4,22 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   font-family: 'Zen Maru Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #FFF8F0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 input[type="range"] {

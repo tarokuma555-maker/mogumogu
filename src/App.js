@@ -1440,21 +1440,18 @@ const styles = {
   app: {
     fontFamily: '"Zen Maru Gothic", "Rounded Mplus 1c", sans-serif',
     background: COLORS.bg,
-    minHeight: '100vh',
+    height: '100%',
     maxWidth: 480,
     margin: '0 auto',
     position: 'relative',
-    paddingBottom: 80,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
     color: COLORS.text,
-    overflowX: 'hidden',
   },
   tabBar: {
-    position: 'fixed',
-    bottom: 0,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    flexShrink: 0,
     width: '100%',
-    maxWidth: 480,
     display: 'flex',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -1762,6 +1759,38 @@ function LargeAdCard({ ad, style: extraStyle }) {
 // ---------- サーバーサイド動画取得（RLS バイパス） ----------
 const SHORTS_PAGE_SIZE = 20;
 
+async function fetchFreshVideos(stage) {
+  try {
+    const res = await fetch(`/api/fresh-videos?stage=${encodeURIComponent(stage || '')}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.videos || [];
+  } catch (e) {
+    console.error('fetchFreshVideos error:', e);
+    return [];
+  }
+}
+
+async function reportBrokenVideo(youtubeId) {
+  if (!youtubeId) return;
+  try {
+    await supabase.from('videos').delete().eq('youtube_id', youtubeId);
+  } catch (e) {
+    console.error('reportBrokenVideo error:', e);
+  }
+}
+
+function getUserStage() {
+  try {
+    const month = parseInt(localStorage.getItem('mogumogu_month'));
+    if (!month) return '';
+    if (month <= 6) return '初期';
+    if (month <= 8) return '中期';
+    if (month <= 11) return '後期';
+    return '完了期';
+  } catch { return ''; }
+}
+
 async function fetchRandomVideos(excludeIds = []) {
   try {
     const params = new URLSearchParams({ limit: SHORTS_PAGE_SIZE.toString() });
@@ -1983,6 +2012,26 @@ function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
         }}>❤️</div>
       )}
 
+      {/* === 再生ボタン（サムネイル状態） === */}
+      {playState === 'thumbnail' && videoId && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)', zIndex: 10,
+          width: 60, height: 60, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.9)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: 0, height: 0,
+            borderTop: '12px solid transparent',
+            borderBottom: '12px solid transparent',
+            borderLeft: '20px solid #FF6B35',
+            marginLeft: 4,
+          }} />
+        </div>
+      )}
+
       {/* === YouTube iframe（playing 状態のみ） === */}
       {playState === 'playing' && embedUrl && (
         <iframe
@@ -2007,19 +2056,32 @@ function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
           position: 'absolute', inset: 0, zIndex: 6,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.6)',
+          background: 'rgba(0,0,0,0.7)',
         }}>
-          <span style={{ fontSize: 48, marginBottom: 12 }}>⏭️</span>
-          <span style={{ color: '#fff', fontSize: FONT.base, fontWeight: 700 }}>
-            次の動画へ...
-          </span>
+          <div style={{ fontSize: 14, color: '#fff', marginBottom: 12 }}>
+            この動画は再生できません
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              reportBrokenVideo(videoId);
+              if (onSkip) onSkip();
+            }}
+            style={{
+              background: '#FF6B35', color: '#fff', border: 'none',
+              borderRadius: 20, padding: '8px 20px', fontSize: 13,
+              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            スキップ
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); setPlayState('thumbnail'); }}
             style={{
-              marginTop: 12, background: 'rgba(255,255,255,0.2)',
+              marginTop: 8, background: 'rgba(255,255,255,0.2)',
               border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20,
-              padding: '8px 24px', color: '#fff', fontSize: FONT.sm,
-              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              padding: '6px 20px', color: '#fff', fontSize: 12,
+              cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
             リトライ
@@ -2193,13 +2255,36 @@ function HomeTab() {
     let cancelled = false;
     async function loadInitial() {
       setLoading(true);
-      const data = await fetchRandomVideos();
+      const userStage = getUserStage();
+
+      // DB動画 + 新着動画を並行取得
+      const [dbData, freshData] = await Promise.all([
+        fetchRandomVideos(),
+        fetchFreshVideos(userStage),
+      ]);
       if (cancelled) return;
-      if (data.length > 0) {
-        setVideos(data);
-        setHasMore(data.length >= SHORTS_PAGE_SIZE);
-        videosCache.data = data;
-        videosCache.hasMore = data.length >= SHORTS_PAGE_SIZE;
+
+      // 結合して重複排除
+      const seen = new Set();
+      let allVideos = [...freshData, ...dbData].filter(v => {
+        const vid = v.youtube_id;
+        if (!vid || seen.has(vid)) return false;
+        seen.add(vid);
+        return true;
+      });
+
+      // ステージ優先ソート
+      if (userStage) {
+        const matching = allVideos.filter(v => (v.baby_stage || v.baby_month_stage || v.stage) === userStage);
+        const others = allVideos.filter(v => (v.baby_stage || v.baby_month_stage || v.stage) !== userStage);
+        allVideos = [...matching, ...others];
+      }
+
+      if (allVideos.length > 0) {
+        setVideos(allVideos);
+        setHasMore(allVideos.length >= SHORTS_PAGE_SIZE);
+        videosCache.data = allVideos;
+        videosCache.hasMore = allVideos.length >= SHORTS_PAGE_SIZE;
       } else {
         setVideos(FALLBACK_VIDEOS);
         setHasMore(false);
@@ -2347,11 +2432,12 @@ function HomeTab() {
       <div
         ref={containerRef}
         style={{
-          height: cardHeight,
+          height: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
         }}
       >
         {displayItems.map((entry, i) => (
@@ -2360,7 +2446,7 @@ function HomeTab() {
               <VideoCard
                 item={entry.data}
                 cardHeight={cardHeight}
-                isVisible={Math.abs(i - currentIndex) <= 2}
+                isVisible={Math.abs(i - currentIndex) <= 1}
                 isActive={i === currentIndex}
                 onSkip={() => {
                   const nextIdx = i + 1;
@@ -2655,7 +2741,7 @@ function SearchTab() {
   ];
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
       <Header title="🔍 食材レシピ検索" subtitle="食材名で離乳食レシピを探そう" />
 
       {/* 検索バー */}
@@ -3395,7 +3481,7 @@ function ShareTab() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ position: 'relative' }}
+      style={{ position: 'relative', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
     >
       {/* プルダウンリフレッシュインジケーター */}
       {(pullY > 0 || refreshing) && (
@@ -3578,7 +3664,7 @@ function RecipeTab() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
       <Header title="🍳 AIレシピ" subtitle="月齢に合わせたレシピを自動生成" />
 
       <div style={{ padding: SPACE.lg }}>
@@ -4307,7 +4393,7 @@ function AiConsultationTab() {
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)' }}>
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Header title="💬 AI相談" subtitle="離乳食・育児のお悩みに回答" />
 
       {/* メッセージエリア */}
@@ -4589,7 +4675,7 @@ function SettingsTab() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
       <Header title="⚙️ 設定" subtitle="お子さまの情報を登録しよう" />
 
       <div style={{ padding: SPACE.lg }}>
@@ -5197,6 +5283,9 @@ function App() {
     <div style={styles.app}>
       {/* メインコンテンツ（ページ遷移アニメーション） */}
       <div style={{
+        flex: 1,
+        overflow: 'hidden',
+        position: 'relative',
         opacity: isTransitioning ? 0 : 1,
         transform: isTransitioning ? 'translateY(8px)' : 'translateY(0)',
         transition: 'opacity 0.15s ease, transform 0.15s ease',
