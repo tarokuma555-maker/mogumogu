@@ -3387,7 +3387,7 @@ function ShareTab() {
 
       {/* 新規投稿FAB */}
       <button className="tap-scale" onClick={() => { if (tryPost()) setShowNewPost(true); }} style={{
-        position: 'fixed', bottom: 90, right: 'calc(50% - 220px)',
+        position: 'fixed', bottom: 90, right: 20,
         width: 54, height: 54, borderRadius: '50%', border: 'none',
         background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
         color: '#fff', fontSize: 26, cursor: 'pointer',
