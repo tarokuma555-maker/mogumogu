@@ -5032,12 +5032,129 @@ function SettingsTab() {
 
 // ============================================================
 // App
+// ---------- PWA インストールバナー ----------
+function useInstallPrompt() {
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const deferredPrompt = useRef(null);
+
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const ios = /iphone|ipad|ipod/.test(ua);
+    const android = /android/.test(ua);
+    setIsIOS(ios);
+    setIsAndroid(android);
+
+    // 既にインストール済み or dismiss 済みなら非表示
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (isStandalone || localStorage.getItem('mogumogu_install_dismissed') === 'true') return;
+
+    // 訪問カウント
+    let count = parseInt(localStorage.getItem('mogumogu_visit_count') || '0', 10) + 1;
+    localStorage.setItem('mogumogu_visit_count', count.toString());
+    if (count < 3) return;
+
+    if (android || (!ios && !android)) {
+      const handler = (e) => { e.preventDefault(); deferredPrompt.current = e; setShowPrompt(true); };
+      window.addEventListener('beforeinstallprompt', handler);
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+    } else if (ios) {
+      setShowPrompt(true);
+    }
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt.current) {
+      deferredPrompt.current.prompt();
+      await deferredPrompt.current.userChoice;
+      deferredPrompt.current = null;
+    }
+    setShowPrompt(false);
+  };
+
+  const handleDismiss = () => {
+    setShowPrompt(false);
+    localStorage.setItem('mogumogu_install_dismissed', 'true');
+  };
+
+  return { showPrompt, isIOS, isAndroid, handleInstall, handleDismiss };
+}
+
+function InstallPromptBanner({ isIOS, isAndroid, onInstall, onDismiss }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 80, left: SPACE.md, right: SPACE.md,
+      background: COLORS.card, border: `2px solid ${COLORS.primary}`,
+      borderRadius: 20, padding: SPACE.lg,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 3000,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: SPACE.md }}>
+        <div style={{ fontSize: 40, flexShrink: 0, lineHeight: 1 }}>🍙</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: FONT.lg, fontWeight: 700, color: COLORS.text, marginBottom: SPACE.xs }}>
+            MoguMogu をホーム画面に追加しませんか？
+          </div>
+          {isIOS ? (
+            <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.8, marginTop: SPACE.xs }}>
+              <div>1. 下部の <strong>共有ボタン ⬆</strong> をタップ</div>
+              <div>2. <strong>「ホーム画面に追加」</strong> を選択</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.xs }}>
+              オフラインでも使えるようになります
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: SPACE.sm, marginTop: SPACE.md }}>
+            {isAndroid && (
+              <button onClick={onInstall} style={{
+                flex: 1, padding: `${SPACE.sm}px ${SPACE.md}px`,
+                background: COLORS.primary, color: '#fff', border: 'none',
+                borderRadius: 12, fontSize: FONT.base, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>追加する</button>
+            )}
+            <button onClick={onDismiss} style={{
+              flex: isAndroid ? 0 : 1, padding: `${SPACE.sm}px ${SPACE.md}px`,
+              background: 'transparent', color: COLORS.textLight,
+              border: `1px solid ${COLORS.border}`, borderRadius: 12,
+              fontSize: FONT.base, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+            }}>{isAndroid ? 'あとで' : '閉じる'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- オフラインインジケーター ----------
+function OfflineIndicator() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  if (isOnline) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: COLORS.textMuted, color: '#fff',
+      padding: SPACE.sm, textAlign: 'center', fontSize: FONT.sm, fontWeight: 700,
+    }}>
+      オフラインモード - 一部の機能が制限されています
+    </div>
+  );
+}
+
 // ============================================================
 const PROTECTED_TABS = ['share', 'recipe', 'settings'];
 
 function App() {
   const { loading, authScreen, setAuthScreen, isAuthenticated, user } = useAuth();
   const { refreshPremium } = usePremium();
+  const { showPrompt, isIOS, isAndroid, handleInstall, handleDismiss } = useInstallPrompt();
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
@@ -5194,6 +5311,17 @@ function App() {
 
       {/* Paywallモーダル */}
       <PaywallModal />
+
+      {/* PWA */}
+      <OfflineIndicator />
+      {showPrompt && (
+        <InstallPromptBanner
+          isIOS={isIOS}
+          isAndroid={isAndroid}
+          onInstall={handleInstall}
+          onDismiss={handleDismiss}
+        />
+      )}
     </div>
   );
 }
