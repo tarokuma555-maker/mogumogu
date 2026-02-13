@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
   }
 
   // --- OpenAI APIキーチェック ---
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
   if (!apiKey) {
     console.error('OPENAI_API_KEY is not set');
     // フォールバック応答を返す
