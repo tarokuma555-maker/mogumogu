@@ -61,7 +61,27 @@ function AuthProvider({ children }) {
 
     // 初回ロード時のURLクリーンアップ（LINEコールバック後）
     const params = new URLSearchParams(window.location.search);
-    if (params.get('login') === 'error') {
+
+    // LINE ログインコールバック: token_hash で verifyOtp セッション作成
+    const lineToken = params.get('line_token');
+    const lineEmail = params.get('line_email');
+    if (lineToken && lineEmail) {
+      (async () => {
+        try {
+          const { error: otpError } = await supabase.auth.verifyOtp({
+            token_hash: lineToken,
+            type: 'magiclink',
+          });
+          if (otpError) {
+            console.error('LINE verifyOtp error:', otpError.message);
+          }
+        } catch (e) {
+          console.error('LINE session creation failed:', e);
+        } finally {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      })();
+    } else if (params.get('login') === 'error') {
       console.error('LINE login error:', params.get('reason'));
       window.history.replaceState({}, '', window.location.pathname);
     } else if (params.has('login')) {
@@ -555,10 +575,10 @@ function LoginScreen() {
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
-      <div style={{ padding: `60px ${SPACE.xl}px ${SPACE.xl}px` }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontSize: 64, marginBottom: SPACE.sm }}>🍙</div>
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif", overflowY: 'auto' }}>
+      <div style={{ padding: `40px ${SPACE.xl}px ${SPACE.xl}px` }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: SPACE.xs }}>🍙</div>
           <div style={{ fontSize: FONT.xxl, fontWeight: 900, color: COLORS.primaryDark, letterSpacing: 1 }}>MoguMogu</div>
           <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: SPACE.xs }}>離乳食サポートアプリ</div>
         </div>
@@ -578,30 +598,30 @@ function LoginScreen() {
             onKeyDown={e => { if (e.key === 'Enter') handleLogin(); }} />
         </div>
 
-        <div style={{ textAlign: 'right', marginBottom: SPACE.xl }}>
+        <div style={{ textAlign: 'right', marginBottom: SPACE.md }}>
           <button onClick={() => setAuthScreen('reset')} style={{ background: 'none', border: 'none', color: COLORS.primary, fontSize: FONT.sm, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
             パスワードを忘れた方
           </button>
         </div>
 
         <button className="tap-scale" onClick={handleLogin} disabled={isLoading} style={{
-          width: '100%', padding: SPACE.lg, borderRadius: 16, border: 'none',
+          width: '100%', padding: SPACE.md, borderRadius: 16, border: 'none',
           background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
           color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
           fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
-          opacity: isLoading ? 0.7 : 1, marginBottom: SPACE.xl,
+          opacity: isLoading ? 0.7 : 1, marginBottom: SPACE.md,
         }}>
           {isLoading ? 'ログイン中...' : 'ログイン'}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: SPACE.md, marginBottom: SPACE.lg }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SPACE.md, marginBottom: SPACE.md }}>
           <div style={{ flex: 1, height: 1, background: COLORS.border }} />
           <span style={{ fontSize: FONT.sm, color: COLORS.textLight }}>または</span>
           <div style={{ flex: 1, height: 1, background: COLORS.border }} />
         </div>
 
         <button className="tap-scale" onClick={signInWithGoogle} style={{
-          width: '100%', padding: SPACE.md, borderRadius: 14, border: `2px solid ${COLORS.border}`,
+          width: '100%', padding: SPACE.sm, borderRadius: 14, border: `2px solid ${COLORS.border}`,
           background: '#fff', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
           fontFamily: 'inherit', color: COLORS.text, display: 'flex',
           alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.sm,
@@ -610,10 +630,10 @@ function LoginScreen() {
         </button>
 
         <button className="tap-scale" onClick={signInWithLINE} style={{
-          width: '100%', padding: SPACE.md, borderRadius: 14, border: 'none',
+          width: '100%', padding: SPACE.sm, borderRadius: 14, border: 'none',
           background: '#06C755', fontSize: FONT.base, fontWeight: 700, cursor: 'pointer',
           fontFamily: 'inherit', color: '#fff', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.xxl,
+          alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.lg,
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
             <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
@@ -671,8 +691,8 @@ function SignupScreen() {
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
-      <div style={{ padding: `${SPACE.xl}px` }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif", overflowY: 'auto' }}>
+      <div style={{ padding: `${SPACE.lg}px ${SPACE.xl}px` }}>
         <button onClick={() => setAuthScreen('login')} style={{
           background: 'none', border: 'none', fontSize: FONT.xl, cursor: 'pointer',
           color: COLORS.text, fontFamily: 'inherit', padding: `${SPACE.sm}px 0`, marginBottom: SPACE.md,

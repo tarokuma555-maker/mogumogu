@@ -167,11 +167,11 @@ async function handleCallback(req, res, code, state) {
       console.error('users upsert error:', e.message);
     }
 
-    // 6. マジックリンクを生成してセッションを作成
+    // 6. マジックリンクを生成してトークンハッシュを取得
+    const userEmail = existingUser ? existingUser.email : lineEmail;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
-      email: existingUser ? existingUser.email : lineEmail,
-      options: { redirectTo: `${APP_URL}?login=success&provider=line` },
+      email: userEmail,
     });
 
     if (linkError) throw linkError;
@@ -187,14 +187,16 @@ async function handleCallback(req, res, code, state) {
       'line_nonce=; Path=/; HttpOnly; Secure; Max-Age=0',
     ]);
 
-    // マジックリンクの action_link にリダイレクト
-    // Supabase がセッションを設定した後にアプリへリダイレクト
-    const actionLink = linkData?.properties?.action_link;
-    if (actionLink) {
-      res.redirect(302, actionLink);
+    // トークンハッシュをフロントエンドに渡す
+    // フロントエンドで verifyOtp を使ってセッション作成
+    const tokenHash = linkData?.properties?.hashed_token;
+    if (tokenHash) {
+      const redirectUrl = new URL(APP_URL);
+      redirectUrl.searchParams.set('line_token', tokenHash);
+      redirectUrl.searchParams.set('line_email', userEmail);
+      res.redirect(302, redirectUrl.toString());
     } else {
-      // フォールバック: 直接アプリにリダイレクト
-      res.redirect(302, `${APP_URL}?login=success&provider=line`);
+      res.redirect(302, `${APP_URL}?login=error&reason=no_token`);
     }
   } catch (err) {
     console.error('LINE login error:', err);
