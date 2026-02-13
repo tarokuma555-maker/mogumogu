@@ -5403,9 +5403,15 @@ function App() {
   const { loading, authScreen, setAuthScreen, isAuthenticated, user } = useAuth();
   const { refreshPremium } = usePremium();
   const { showPrompt, isIOS, isAndroid, handleInstall, handleDismiss } = useInstallPrompt();
-  const [activeTab, setActiveTab] = useState('home');
+  const VALID_TABS = ['home', 'search', 'share', 'recipe', 'ai', 'settings'];
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      return t && VALID_TABS.includes(t) ? t : 'home';
+    } catch { return 'home'; }
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [displayedTab, setDisplayedTab] = useState('home');
+  const [displayedTab, setDisplayedTab] = useState(activeTab);
   const [premiumScreen, setPremiumScreen] = useState(null); // 'premium' | 'success' | null
   const [checkoutStatus, setCheckoutStatus] = useState(null); // 'success' | 'cancel'
 
@@ -5438,12 +5444,10 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
       setTimeout(() => setCheckoutStatus(null), 4000);
     }
-    // Portal からの戻り
-    if (params.get('tab') === 'settings') {
-      setActiveTab('settings');
-      setDisplayedTab('settings');
+    // Portal からの戻り（tab パラメータ処理は初期値で反映済み、URL をクリーンアップ）
+    if (params.get('tab')) {
       window.history.replaceState({}, '', window.location.pathname);
-      if (user) refreshPremium();
+      if (params.get('tab') === 'settings' && user) refreshPremium();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -5458,6 +5462,10 @@ function App() {
     setTimeout(() => {
       setActiveTab(newTab);
       setDisplayedTab(newTab);
+      const url = newTab === 'home'
+        ? window.location.pathname
+        : `${window.location.pathname}?tab=${newTab}`;
+      window.history.replaceState({}, '', url);
       window.scrollTo({ top: 0, behavior: 'instant' });
       requestAnimationFrame(() => {
         setIsTransitioning(false);
