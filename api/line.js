@@ -207,144 +207,18 @@ async function handleCallback(req, res, code, state) {
   }
 }
 
-// ===== POST: LINE Webhook & メッセージ送信 =====
-async function handlePost(req, res) {
-  const signature = req.headers['x-line-signature'];
-
-  if (signature) {
-    return handleWebhook(req, res, signature);
-  }
-  return handlePushMessage(req, res);
-}
-
-// ----- Webhook（LINE からのイベント受信） -----
-async function handleWebhook(req, res, signature) {
-  const channelSecret = process.env.LINE_MESSAGING_CHANNEL_SECRET;
-  if (!channelSecret) {
-    return res.status(500).json({ error: 'LINE_MESSAGING_CHANNEL_SECRET not configured' });
-  }
-
-  // 署名検証
-  const body = JSON.stringify(req.body);
-  const hash = crypto.createHmac('SHA256', channelSecret).update(body).digest('base64');
-  if (hash !== signature) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-
-  const events = req.body.events || [];
-  const token = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
-
-  for (const event of events) {
-    switch (event.type) {
-      case 'follow':
-        console.log(`New LINE friend: ${event.source.userId}`);
-        if (token) {
-          await fetch('https://api.line.me/v2/bot/message/reply', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              replyToken: event.replyToken,
-              messages: [
-                {
-                  type: 'text',
-                  text: 'MoguMogu 🍼 へようこそ！\n\n離乳食のレシピや育児情報をお届けします。\n\nアプリはこちら👇\nhttps://mogumogu-omega.vercel.app',
-                },
-                {
-                  type: 'text',
-                  text: '📌 配信内容\n・毎日の離乳食レシピ\n・月齢別のおすすめ食材\n・離乳食のコツ\n\nお困りのことがあれば、いつでもメッセージしてくださいね😊',
-                },
-              ],
-            }),
-          });
-        }
-        break;
-
-      case 'unfollow':
-        console.log(`LINE unfollowed: ${event.source.userId}`);
-        break;
-
-      case 'message':
-        if (event.message.type === 'text' && token) {
-          const text = event.message.text;
-          let replyText;
-
-          if (text.includes('レシピ')) {
-            replyText = '🍳 離乳食レシピはアプリで検索できます！\n\nhttps://mogumogu-omega.vercel.app\n\nAIに相談もできますよ😊';
-          } else if (text.includes('相談') || text.includes('悩み')) {
-            replyText = '🤖 離乳食の悩みはアプリのAI相談で聞いてみてください！\n\nhttps://mogumogu-omega.vercel.app\n\n24時間いつでも相談できます✨';
-          } else {
-            replyText = 'メッセージありがとうございます😊\n\nアプリでレシピ検索やAI相談ができます👇\nhttps://mogumogu-omega.vercel.app';
-          }
-
-          await fetch('https://api.line.me/v2/bot/message/reply', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              replyToken: event.replyToken,
-              messages: [{ type: 'text', text: replyText }],
-            }),
-          });
-        }
-        break;
-    }
-  }
-
-  res.status(200).json({ success: true });
-}
-
-// ----- メッセージ送信（アプリから LINE ユーザーに通知） -----
-async function handlePushMessage(req, res) {
-  const { lineUserId, message } = req.body;
-  const token = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
-
-  if (!token || !lineUserId || !message) {
-    return res.status(400).json({ error: 'Missing parameters' });
-  }
-
-  try {
-    const response = await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        to: lineUserId,
-        messages: [{ type: 'text', text: message }],
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(JSON.stringify(error));
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('LINE push message error:', err);
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// ===== メインハンドラ =====
+// ===== メインハンドラ（GET: ログイン認証のみ） =====
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
     if (req.method === 'GET') return await handleGet(req, res);
-    if (req.method === 'POST') return await handlePost(req, res);
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('LINE API error:', err);
+    console.error('LINE auth error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

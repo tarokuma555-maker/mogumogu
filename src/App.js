@@ -213,7 +213,7 @@ function PremiumProvider({ children }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return isPremiumRef.current;
-      const res = await fetch('/api/check-subscription', {
+      const res = await fetch('/api/create-checkout?action=check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -477,7 +477,7 @@ function useSubscription() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) { setIsLoading(false); return; }
-      const res = await fetch('/api/check-subscription', {
+      const res = await fetch('/api/create-checkout?action=check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4275,7 +4275,7 @@ function PremiumSuccessScreen({ onClose, sessionId }) {
       while (!cancelled && attempts < 5) {
         attempts++;
         try {
-          const res = await fetch('/api/verify-checkout', {
+          const res = await fetch('/api/create-checkout?action=verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId }),
