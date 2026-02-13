@@ -1350,9 +1350,6 @@ function getAd(index) {
   return shuffledAds[Math.floor(index) % shuffledAds.length];
 }
 
-// 広告ヘルパー
-function adColor(ad) { return ad.gradient.match(/#[0-9A-Fa-f]{6}/g)?.[1] || '#FF6B35'; }
-
 // 広告インプレッション計測（impUrl ピクセル読み込み）
 function trackAdImpression(ad) {
   if (ad.impUrl) {
@@ -1470,88 +1467,6 @@ function Header({ title, subtitle }) {
 }
 
 // ---------- 広告コンポーネント ----------
-function BannerAd({ ad, style: extraStyle }) {
-  const { isPremium } = usePremium();
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdImpression(ad); }, [ad, isPremium, dismissed]);
-  if (isPremium || dismissed || !ad) return null;
-  const color = adColor(ad);
-  return (
-    <div style={{ position: 'relative', ...extraStyle }}>
-      <a href={ad.url} target="_blank" rel="noopener noreferrer" className="tap-scale" style={{
-        background: '#fff', borderRadius: 18, border: `1px solid ${COLORS.border}`,
-        padding: `${SPACE.md}px ${SPACE.lg}px`, display: 'flex', alignItems: 'center', gap: SPACE.md,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: 'pointer', textDecoration: 'none', color: 'inherit',
-      }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 12, background: `${color}15`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0,
-        }}>{ad.icon}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontWeight: 700, fontSize: FONT.sm, color: COLORS.text }}>{ad.title}</span>
-            <span style={{ color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600 }}>PR</span>
-          </div>
-          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.4,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.description}</div>
-        </div>
-      </a>
-      <button onClick={() => setDismissed(true)} style={{
-        position: 'absolute', top: 6, right: 8, background: 'none', border: 'none',
-        fontSize: FONT.sm, color: COLORS.textLight, cursor: 'pointer', padding: SPACE.xs,
-        lineHeight: 1, opacity: 0.5, width: 32, height: 32, zIndex: 2,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>✕</button>
-    </div>
-  );
-}
-
-function BannerAdLarge({ ad, style: extraStyle }) {
-  const { isPremium } = usePremium();
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdImpression(ad); }, [ad, isPremium, dismissed]);
-  if (isPremium || dismissed || !ad) return null;
-  const color = adColor(ad);
-  return (
-    <div style={{ position: 'relative', ...extraStyle }}>
-      <a href={ad.url} target="_blank" rel="noopener noreferrer" style={{
-        display: 'block', background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
-        overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)', cursor: 'pointer',
-        textDecoration: 'none', color: 'inherit',
-      }}>
-        <div style={{
-          background: `${color}12`,
-          padding: `${SPACE.xl}px ${SPACE.lg}px ${SPACE.lg}px`, position: 'relative',
-          textAlign: 'center',
-        }}>
-          <span style={{
-            position: 'absolute', top: 10, left: 12,
-            color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
-          }}>PR</span>
-          <div style={{ fontSize: 38, marginBottom: 6 }}>{ad.icon}</div>
-          <div style={{ fontSize: FONT.lg, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>{ad.title}</div>
-          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5 }}>{ad.description}</div>
-        </div>
-        <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px`, textAlign: 'center' }}>
-          <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginBottom: SPACE.sm }}>{ad.category}</div>
-          <span style={{
-            display: 'inline-block', background: ad.gradient,
-            color: '#fff', borderRadius: 12, padding: '10px 24px',
-            fontWeight: 700, fontSize: FONT.base,
-            boxShadow: `0 2px 8px ${color}22`,
-          }}>{ad.ctaText || '詳しく見る'}</span>
-        </div>
-      </a>
-      <button onClick={() => setDismissed(true)} style={{
-        position: 'absolute', top: 10, right: 12, background: 'rgba(0,0,0,0.04)',
-        border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: FONT.sm,
-        color: COLORS.textLight, cursor: 'pointer', zIndex: 2,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>✕</button>
-    </div>
-  );
-}
-
 function AdCard({ ad, cardHeight }) {
   const { isPremium } = usePremium();
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -1648,6 +1563,120 @@ function AdCard({ ad, cardHeight }) {
         textAlign: 'center', fontSize: 11, opacity: 0.5,
       }}>
         ↑ スワイプして次の動画へ
+      </div>
+    </a>
+  );
+}
+
+// ---------- コンパクト広告カード（ページ内挿入用） ----------
+function CompactAdCard({ ad, style: extraStyle }) {
+  const { isPremium } = usePremium();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  useEffect(() => { if (ad && !isPremium) trackAdImpression(ad); }, [ad, isPremium]);
+  if (isPremium || !ad) return null;
+  return (
+    <a href={ad.url} target="_blank" rel="noopener noreferrer" style={{
+      display: 'flex', background: '#fff', borderRadius: 16, overflow: 'hidden',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.08)', textDecoration: 'none', color: '#333',
+      margin: '16px 0', border: '1px solid #f0f0f0', position: 'relative', ...extraStyle,
+    }}>
+      <div style={{
+        position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.5)', color: '#fff',
+        fontSize: 9, fontWeight: 'bold', padding: '2px 6px', borderRadius: 3, letterSpacing: 1, zIndex: 1,
+      }}>PR</div>
+      <div style={{
+        width: 120, minHeight: 120, background: ad.gradient, flexShrink: 0,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <img src={ad.imageUrl} alt={ad.title} onLoad={() => setImageLoaded(true)}
+          onError={(e) => { e.target.style.display = 'none'; }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover',
+            opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.3s' }} />
+        {!imageLoaded && (
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
+            {ad.icon}
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', gap: 4 }}>
+        <div style={{ fontSize: 10, color: '#999', fontWeight: 'bold', letterSpacing: 0.5 }}>
+          {ad.category}
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 'bold', lineHeight: 1.3, color: '#222' }}>
+          {ad.icon} {ad.title}
+        </div>
+        <div style={{ fontSize: 12, color: '#666', lineHeight: 1.4 }}>
+          {ad.description}
+        </div>
+        <div style={{ fontSize: 11, color: '#FF6B35', fontWeight: 'bold', marginTop: 2 }}>
+          ✓ {ad.features[0]}
+        </div>
+        <div style={{ marginTop: 6, background: ad.gradient, color: '#fff', borderRadius: 20,
+          padding: '6px 16px', fontSize: 12, fontWeight: 'bold', textAlign: 'center',
+          display: 'inline-block', alignSelf: 'flex-start' }}>
+          {ad.ctaText} →
+        </div>
+      </div>
+    </a>
+  );
+}
+
+// ---------- 大きめ広告カード（ページ間挿入用） ----------
+function LargeAdCard({ ad, style: extraStyle }) {
+  const { isPremium } = usePremium();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  useEffect(() => { if (ad && !isPremium) trackAdImpression(ad); }, [ad, isPremium]);
+  if (isPremium || !ad) return null;
+  return (
+    <a href={ad.url} target="_blank" rel="noopener noreferrer" style={{
+      display: 'block', background: '#fff', borderRadius: 16, overflow: 'hidden',
+      boxShadow: '0 2px 16px rgba(0,0,0,0.1)', textDecoration: 'none', color: '#333',
+      margin: '20px 0', position: 'relative', ...extraStyle,
+    }}>
+      <div style={{
+        position: 'absolute', top: 12, left: 12, zIndex: 2, background: 'rgba(0,0,0,0.6)',
+        color: '#fff', fontSize: 10, fontWeight: 'bold', padding: '3px 8px', borderRadius: 4,
+      }}>PR</div>
+      <div style={{ width: '100%', height: 180, background: ad.gradient,
+        position: 'relative', overflow: 'hidden' }}>
+        <img src={ad.imageUrl} alt={ad.title} onLoad={() => setImageLoaded(true)}
+          onError={(e) => { e.target.style.display = 'none'; }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover',
+            opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.3s' }} />
+        {!imageLoaded && (
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56, color: '#fff' }}>
+            {ad.icon}
+          </div>
+        )}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
+          background: 'linear-gradient(transparent, rgba(0,0,0,0.4))' }} />
+        <div style={{ position: 'absolute', bottom: 10, right: 12, background: 'rgba(255,255,255,0.9)',
+          color: '#333', fontSize: 11, fontWeight: 'bold', padding: '3px 10px', borderRadius: 10 }}>
+          {ad.category}
+        </div>
+      </div>
+      <div style={{ padding: '16px 16px 14px' }}>
+        <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 6, lineHeight: 1.3 }}>
+          {ad.icon} {ad.title}
+        </div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12, lineHeight: 1.5 }}>
+          {ad.description}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {ad.features.map((f, i) => (
+            <span key={i} style={{ fontSize: 11, color: '#FF6B35', background: '#FFF3E0',
+              padding: '4px 10px', borderRadius: 12, fontWeight: 'bold' }}>
+              ✓ {f}
+            </span>
+          ))}
+        </div>
+        <div style={{ background: ad.gradient, color: '#fff', borderRadius: 24,
+          padding: '12px 0', fontSize: 15, fontWeight: 'bold', textAlign: 'center' }}>
+          {ad.ctaText} →
+        </div>
       </div>
     </a>
   );
@@ -2586,7 +2615,7 @@ function SearchTab() {
             ))}
           </div>
 
-          <BannerAdLarge ad={getAd(0)} style={{ marginBottom: SPACE.xxl }} />
+          <LargeAdCard ad={getAd(0)} style={{ marginBottom: SPACE.lg }} />
 
           {/* 人気の組み合わせ */}
           <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.textLight, marginBottom: SPACE.sm + 2 }}>
@@ -2610,7 +2639,7 @@ function SearchTab() {
             ))}
           </div>
 
-          <BannerAd ad={getAd(1)} style={{ marginBottom: SPACE.xxl }} />
+          <CompactAdCard ad={getAd(1)} style={{ marginBottom: SPACE.lg }} />
 
           {/* 月齢別で探す */}
           <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.textLight, marginBottom: SPACE.sm + 2 }}>
@@ -2636,8 +2665,7 @@ function SearchTab() {
               </button>
             ))}
           </div>
-          <BannerAd ad={getAd(2)} style={{ marginTop: SPACE.lg, marginBottom: SPACE.sm }} />
-          <BannerAdLarge ad={getAd(3)} style={{ marginTop: SPACE.sm }} />
+          <LargeAdCard ad={getAd(2)} style={{ marginTop: SPACE.lg }} />
         </div>
       )}
 
@@ -2661,9 +2689,8 @@ function SearchTab() {
           {results.map((r, i) => (
             <React.Fragment key={r.id}>
               <RecipeCard recipe={r} defaultOpen={results.length === 1} />
-              {i === 1 && <BannerAd ad={getAd(4)} style={{ marginBottom: SPACE.lg }} />}
-              {i === 4 && <BannerAdLarge ad={getAd(5)} style={{ marginBottom: SPACE.lg }} />}
-              {i === 7 && <BannerAd ad={getAd(6)} style={{ marginBottom: SPACE.lg }} />}
+              {i === 2 && <LargeAdCard ad={getAd(4)} />}
+              {i === 5 && <LargeAdCard ad={getAd(5)} />}
             </React.Fragment>
           ))}
           {results.length === 0 && (
@@ -3757,12 +3784,7 @@ function ShareTab() {
           filteredPosts.map((post, i) => (
             <React.Fragment key={post.id}>
               <SnsPostCard post={post} />
-              {i === 0 && <BannerAd ad={getAd(7)} style={{ marginBottom: SPACE.md }} />}
-              {i === 2 && <BannerAdLarge ad={getAd(8)} style={{ marginBottom: SPACE.md }} />}
-              {i === 3 && <BannerAd ad={getAd(9)} style={{ marginBottom: SPACE.md }} />}
-              {i === 5 && <BannerAdLarge ad={getAd(10)} style={{ marginBottom: SPACE.md }} />}
-              {i === 6 && <BannerAd ad={getAd(11)} style={{ marginBottom: SPACE.md }} />}
-              {i === 7 && <BannerAd ad={getAd(0)} style={{ marginBottom: SPACE.md }} />}
+              {(i + 1) % 4 === 0 && <LargeAdCard ad={getAd(7 + Math.floor(i / 4))} />}
             </React.Fragment>
           ))
         ) : !loadingPosts ? (
@@ -4022,10 +4044,8 @@ function RecipeTab() {
               recipes.map((r, i) => (
                 <React.Fragment key={r.id}>
                   <RecipeCard recipe={r} />
-                  {i === 1 && <BannerAd ad={getAd(3)} style={{ marginBottom: SPACE.lg }} />}
-                  {i === 3 && <BannerAdLarge ad={getAd(4)} style={{ marginBottom: SPACE.lg }} />}
-                  {i === 5 && <BannerAd ad={getAd(5)} style={{ marginBottom: SPACE.lg }} />}
-                  {i === 7 && <BannerAdLarge ad={getAd(6)} style={{ marginBottom: SPACE.lg }} />}
+                  {i === 1 && <CompactAdCard ad={getAd(3)} />}
+                  {i === 3 && <LargeAdCard ad={getAd(4)} />}
                 </React.Fragment>
               ))
             ) : (
@@ -4042,8 +4062,7 @@ function RecipeTab() {
                     アレルゲン設定により全てのレシピが<br />除外されました。設定を見直してみてください。
                   </div>
                 </div>
-                <BannerAdLarge ad={getAd(7)} style={{ marginBottom: SPACE.lg }} />
-                <BannerAd ad={getAd(8)} style={{ marginBottom: SPACE.lg }} />
+                <LargeAdCard ad={getAd(7)} />
               </div>
             )}
 
@@ -4100,12 +4119,11 @@ function RecipeTab() {
                       <div style={{ fontSize: 12, color: COLORS.textLight }}>{s.range} ・ {count}品</div>
                     </div>
                   </div>
-                  {i === 1 && <BannerAd ad={getAd(9)} />}
+                  {i === 1 && <CompactAdCard ad={getAd(9)} />}
                 </React.Fragment>
               );
             })}
-            <BannerAdLarge ad={getAd(10)} style={{ marginTop: 4 }} />
-            <BannerAd ad={getAd(11)} style={{ marginTop: 12 }} />
+            <LargeAdCard ad={getAd(10)} style={{ marginTop: 4 }} />
           </div>
         )}
       </div>
@@ -4945,6 +4963,9 @@ function SettingsTab() {
             ログアウト
           </button>
         )}
+
+        {/* おすすめ広告 */}
+        <CompactAdCard ad={getAd(12)} />
 
         {/* 広告パフォーマンス */}
         <AdAnalyticsPanel />
