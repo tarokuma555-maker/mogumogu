@@ -1625,23 +1625,39 @@ function AdCard({ ad, cardHeight }) {
   );
 }
 
-// ---------- Supabase 動画取得 ----------
+// ---------- Supabase 動画取得（ランダム） ----------
 const SHORTS_PAGE_SIZE = 20;
 
-async function fetchVideosPage(pageNum) {
+async function fetchRandomVideos(excludeIds = []) {
   try {
+    // RPC でランダム取得を試行
     const { data, error } = await supabase
+      .rpc('get_random_videos', { count_limit: SHORTS_PAGE_SIZE + excludeIds.length });
+
+    if (!error && data && data.length > 0) {
+      // 既に表示済みの動画を除外
+      const filtered = excludeIds.length > 0
+        ? data.filter(v => !excludeIds.includes(v.id))
+        : data;
+      return filtered.slice(0, SHORTS_PAGE_SIZE);
+    }
+
+    if (error) console.error('RPC get_random_videos error, falling back:', error);
+
+    // フォールバック: 通常クエリ（新しい順）
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from('videos')
       .select('*')
       .order('created_at', { ascending: false })
-      .range(pageNum * SHORTS_PAGE_SIZE, (pageNum + 1) * SHORTS_PAGE_SIZE - 1);
-    if (error) {
-      console.error('fetchVideosPage error:', error);
+      .limit(SHORTS_PAGE_SIZE);
+
+    if (fallbackError) {
+      console.error('fetchVideos fallback error:', fallbackError);
       return [];
     }
-    return data || [];
+    return fallbackData || [];
   } catch (e) {
-    console.error('fetchVideosPage exception:', e);
+    console.error('fetchRandomVideos exception:', e);
     return [];
   }
 }
@@ -2004,7 +2020,6 @@ const videosCache = { data: null, page: 0, hasMore: true };
 function HomeTab() {
   const containerRef = useRef(null);
   const [videos, setVideos] = useState(videosCache.data || []);
-  const [page, setPage] = useState(videosCache.page);
   const [hasMore, setHasMore] = useState(videosCache.hasMore);
   const [loading, setLoading] = useState(!videosCache.data);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -2027,20 +2042,17 @@ function HomeTab() {
     let cancelled = false;
     async function loadInitial() {
       setLoading(true);
-      const data = await fetchVideosPage(0);
+      const data = await fetchRandomVideos();
       if (cancelled) return;
       if (data.length > 0) {
         setVideos(data);
-        setPage(1);
         setHasMore(data.length >= SHORTS_PAGE_SIZE);
         videosCache.data = data;
-        videosCache.page = 1;
         videosCache.hasMore = data.length >= SHORTS_PAGE_SIZE;
       } else {
         setVideos(FALLBACK_VIDEOS);
         setHasMore(false);
         videosCache.data = FALLBACK_VIDEOS;
-        videosCache.page = 0;
         videosCache.hasMore = false;
       }
       setLoading(false);
@@ -2049,20 +2061,17 @@ function HomeTab() {
     return () => { cancelled = true; };
   }, []);
 
-  // 追加ページ読み込み
+  // 追加読み込み（既に表示済みの動画を除外してランダム取得）
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMore) return;
     loadingRef.current = true;
-    const data = await fetchVideosPage(page);
+    const existingIds = videos.map(v => v.id);
+    const data = await fetchRandomVideos(existingIds);
     if (data.length > 0) {
       setVideos(prev => {
         const updated = [...prev, ...data];
         videosCache.data = updated;
         return updated;
-      });
-      setPage(prev => {
-        videosCache.page = prev + 1;
-        return prev + 1;
       });
       if (data.length < SHORTS_PAGE_SIZE) {
         setHasMore(false);
@@ -2073,7 +2082,7 @@ function HomeTab() {
       videosCache.hasMore = false;
     }
     loadingRef.current = false;
-  }, [page, hasMore]);
+  }, [videos, hasMore]);
 
   // IntersectionObserver でアクティブカード検出
   useEffect(() => {
