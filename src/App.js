@@ -4349,17 +4349,23 @@ function SubscriptionInfo() {
 }
 
 // ---------- AI相談タブ ----------
+const AI_INITIAL_MESSAGE = { role: 'assistant', content: 'こんにちは！離乳食や育児について、何でもご相談ください 🍙\n\n月齢に合った食材や調理法、アレルギーのこと、食べない時の対策など、お気軽にどうぞ！' };
+let _aiChatCache = null;
+
 function AiConsultationTab() {
   const { isAuthenticated, setAuthScreen } = useAuth();
   const { isPremium } = usePremium();
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'こんにちは！離乳食や育児について、何でもご相談ください 🍙\n\n月齢に合った食材や調理法、アレルギーのこと、食べない時の対策など、お気軽にどうぞ！' },
-  ]);
+  const [messages, setMessages] = useState(() => _aiChatCache || [AI_INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // タブ切替時も会話を保持
+  useEffect(() => {
+    _aiChatCache = messages;
+  }, [messages]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -4533,10 +4539,12 @@ function AiConsultationTab() {
 
       {/* 入力エリア */}
       <form onSubmit={handleSubmit} style={{
-        padding: `${SPACE.sm}px ${SPACE.md}px env(safe-area-inset-bottom, ${SPACE.sm}px)`,
+        padding: `${SPACE.sm}px ${SPACE.md}px`,
+        paddingBottom: `max(${SPACE.sm}px, env(safe-area-inset-bottom, ${SPACE.sm}px))`,
         borderTop: `1px solid ${COLORS.border}`,
         background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)',
-        display: 'flex', gap: 8, alignItems: 'flex-end',
+        display: 'flex', gap: 8, alignItems: 'center',
+        flexShrink: 0, boxSizing: 'border-box', width: '100%',
       }}>
         <input
           ref={inputRef}
@@ -4545,19 +4553,21 @@ function AiConsultationTab() {
           placeholder="質問を入力..."
           disabled={sending}
           style={{
-            flex: 1, padding: '10px 16px', borderRadius: 24,
+            flex: 1, minWidth: 0, padding: '10px 16px', borderRadius: 24,
             border: `1px solid ${COLORS.border}`, fontSize: 16,
             fontFamily: 'inherit', outline: 'none', background: '#f5f5f5',
+            boxSizing: 'border-box',
           }}
         />
         <button type="submit" disabled={sending || !input.trim()} style={{
-          width: 40, height: 40, borderRadius: '50%', border: 'none',
+          width: 40, minWidth: 40, height: 40, borderRadius: '50%', border: 'none',
           background: input.trim() && !sending
             ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
             : '#ddd',
           color: '#fff', fontSize: 18, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, transition: 'background 0.2s',
+          boxSizing: 'border-box',
         }}>
           ↑
         </button>
