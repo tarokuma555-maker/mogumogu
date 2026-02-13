@@ -34,39 +34,12 @@ function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        fetchUserProfile(session.user.id);
-      }
-      setLoading(false);
-    });
+    const initAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const lineToken = params.get('line_token');
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user);
-          await fetchUserProfile(session.user.id);
-          // LINEログイン後のURLクリーンアップ
-          const params = new URLSearchParams(window.location.search);
-          if (params.has('login') || params.has('provider')) {
-            window.history.replaceState({}, '', window.location.pathname);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUserProfile(null);
-        }
-      }
-    );
-
-    // 初回ロード時のURLクリーンアップ（LINEコールバック後）
-    const params = new URLSearchParams(window.location.search);
-
-    // LINE ログインコールバック: token_hash で verifyOtp セッション作成
-    const lineToken = params.get('line_token');
-    const lineEmail = params.get('line_email');
-    if (lineToken && lineEmail) {
-      (async () => {
+      // LINE ログインコールバック: verifyOtp でセッションを作成してから getSession
+      if (lineToken) {
         try {
           const { error: otpError } = await supabase.auth.verifyOtp({
             token_hash: lineToken,
@@ -80,13 +53,37 @@ function AuthProvider({ children }) {
         } finally {
           window.history.replaceState({}, '', window.location.pathname);
         }
-      })();
-    } else if (params.get('login') === 'error') {
-      console.error('LINE login error:', params.get('reason'));
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (params.has('login')) {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+      } else if (params.get('login') === 'error') {
+        console.error('LINE login error:', params.get('reason'));
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      // セッション取得（LINE verifyOtp 後 or 通常ロード）
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        }
+      } catch (e) {
+        console.error('getSession error:', e);
+      }
+      setLoading(false);
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setUserProfile(null);
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, [fetchUserProfile]);
