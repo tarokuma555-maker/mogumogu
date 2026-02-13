@@ -2479,6 +2479,7 @@ function HomeTab() {
 
 // ---------- レシピ外部リンク ----------
 function RecipeSourceLinks({ recipeName }) {
+  const { isPremium, setShowPaywall, setPaywallReason } = usePremium();
   const searchQuery = encodeURIComponent(`離乳食 ${recipeName} レシピ`);
   const links = [
     { name: 'クックパッド', icon: '🔍', url: `https://cookpad.com/search/${encodeURIComponent('離乳食 ' + recipeName)}`, color: '#F48120' },
@@ -2486,12 +2487,36 @@ function RecipeSourceLinks({ recipeName }) {
     { name: 'YouTube', icon: '▶', url: `https://www.youtube.com/results?search_query=${searchQuery}`, color: '#FF0000' },
     { name: 'Google', icon: '🌐', url: `https://www.google.com/search?q=${searchQuery}`, color: '#4285F4' },
   ];
+
+  const handleLockedClick = (e) => {
+    e.preventDefault();
+    setPaywallReason('外部サイトでレシピの詳しい作り方を見るにはプレミアム会員への登録が必要です');
+    setShowPaywall(true);
+  };
+
   return (
-    <div style={{ marginTop: 20, padding: 16, background: '#F5F5F5', borderRadius: 12 }}>
+    <div style={{ marginTop: 20, padding: 16, background: isPremium ? '#F5F5F5' : '#FFF8F0', borderRadius: 12, border: isPremium ? 'none' : '1.5px solid #FFD6A5', position: 'relative' }}>
       <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: '#333' }}>
         📚 このレシピの詳しい作り方を見る
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      {!isPremium && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+          borderRadius: 10, padding: '12px 16px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 22 }}>🔒</span>
+          <div>
+            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>
+              プレミアム会員限定機能
+            </div>
+            <div style={{ color: '#FFE0CC', fontSize: 11, marginTop: 2 }}>
+              外部サイトへのリンクはプレミアム会員のみご利用いただけます
+            </div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: isPremium ? 1 : 0.45, pointerEvents: isPremium ? 'auto' : 'none' }}>
         {links.map((link) => (
           <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
@@ -2505,9 +2530,20 @@ function RecipeSourceLinks({ recipeName }) {
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: '#999', marginTop: 10, textAlign: 'center' }}>
-        外部サイトに移動します
-      </div>
+      {!isPremium ? (
+        <button onClick={handleLockedClick} style={{
+          marginTop: 12, width: '100%', padding: '12px 0',
+          background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+          color: '#fff', border: 'none', borderRadius: 10,
+          fontSize: 14, fontWeight: 'bold', cursor: 'pointer',
+        }}>
+          👑 プレミアム会員になって利用する
+        </button>
+      ) : (
+        <div style={{ fontSize: 11, color: '#999', marginTop: 10, textAlign: 'center' }}>
+          外部サイトに移動します
+        </div>
+      )}
     </div>
   );
 }
