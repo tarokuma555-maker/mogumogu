@@ -1468,9 +1468,9 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 2,
-    padding: '8px 14px',
+    padding: '6px 6px',
     minHeight: 44,
-    minWidth: 44,
+    minWidth: 36,
     border: 'none',
     background: 'none',
     cursor: 'pointer',
@@ -1483,10 +1483,10 @@ const styles = {
     position: 'relative',
   }),
   tabIcon: (active) => ({
-    fontSize: 24,
+    fontSize: 20,
     opacity: active ? 1 : 0.5,
     transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease',
-    transform: active ? 'scale(1.18) translateY(-1px)' : 'scale(1)',
+    transform: active ? 'scale(1.15) translateY(-1px)' : 'scale(1)',
   }),
   tabIndicator: {
     width: 20,
@@ -1517,6 +1517,7 @@ const styles = {
 // ---------- タブバー ----------
 const TABS = [
   { id: 'home', label: 'ホーム', icon: '🏠' },
+  { id: 'search', label: '検索', icon: '🔍' },
   { id: 'recipe', label: 'レシピ', icon: '🍳' },
   { id: 'ai', label: 'AI相談', icon: '💬' },
   { id: 'share', label: 'シェア', icon: '📷' },
@@ -4509,7 +4510,7 @@ function AiConsultationTab() {
           disabled={sending}
           style={{
             flex: 1, padding: '10px 16px', borderRadius: 24,
-            border: `1px solid ${COLORS.border}`, fontSize: FONT.sm,
+            border: `1px solid ${COLORS.border}`, fontSize: 16,
             fontFamily: 'inherit', outline: 'none', background: '#f5f5f5',
           }}
         />
@@ -5182,7 +5183,7 @@ function OfflineIndicator() {
 }
 
 // ============================================================
-const PROTECTED_TABS = ['share', 'recipe', 'ai', 'settings'];
+const PROTECTED_TABS = ['search', 'share', 'recipe', 'ai', 'settings'];
 
 function App() {
   const { loading, authScreen, setAuthScreen, isAuthenticated, user } = useAuth();

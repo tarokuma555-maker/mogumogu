@@ -25,6 +25,27 @@ function buildSystemPrompt(babyMonth, allergens) {
 - 絵文字を適度に使って親しみやすい回答にする`;
 }
 
+// 月齢に応じたフォールバック応答
+function getFallbackReply(message, babyMonth) {
+  const stage = babyMonth <= 6 ? '初期' : babyMonth <= 8 ? '中期' : babyMonth <= 11 ? '後期' : '完了期';
+  const stageInfo = {
+    '初期': 'ゴックン期（5〜6ヶ月）は、10倍がゆやなめらかにすりつぶした野菜ペーストから始めましょう。1日1回、小さじ1杯から少しずつ増やしていきます。',
+    '中期': 'モグモグ期（7〜8ヶ月）は、舌でつぶせる硬さが目安です。おかゆは7倍がゆに。タンパク質（豆腐、白身魚、しらす）も取り入れましょう。',
+    '後期': 'カミカミ期（9〜11ヶ月）は、歯ぐきでつぶせる硬さが目安。手づかみ食べもOK！バナナやスティック野菜がおすすめです。',
+    '完了期': 'パクパク期（12ヶ月〜）は、大人の食事から取り分けもできます。薄味を心がけて、いろいろな食材を試してみましょう。',
+  };
+
+  return `ご質問ありがとうございます！🍙
+
+${babyMonth}ヶ月の赤ちゃんの離乳食についてですね。
+
+${stageInfo[stage]}
+
+離乳食で困ったことがあれば、かかりつけの小児科や地域の保健センターにも相談してみてくださいね。
+
+※ 現在AIサービスに接続できないため、一般的なアドバイスをお伝えしています。しばらく経ってからもう一度お試しください。`;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -48,32 +69,53 @@ module.exports = async function handler(req, res) {
 
   const babyMonth = baby_month || 6;
 
-  // --- レート制限 ---
-  const isPremium = await getIsPremium(user.id);
-  if (!isPremium) {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const { count } = await supabase
-      .from('ai_consultations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', todayStart.toISOString());
+  // --- レート制限（テーブルが無くてもスキップ） ---
+  let isPremium = false;
+  try {
+    isPremium = await getIsPremium(user.id);
+  } catch (e) {
+    console.error('getIsPremium error:', e);
+  }
 
-    const used = count || 0;
-    if (used >= CONSULTATION_LIMIT_FREE) {
-      return res.status(429).json({
-        error: '本日のAI相談回数の上限（3回）に達しました',
-        limit: CONSULTATION_LIMIT_FREE,
-        used,
-      });
+  if (!isPremium) {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from('ai_consultations')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString());
+
+      const used = count || 0;
+      if (used >= CONSULTATION_LIMIT_FREE) {
+        return res.status(429).json({
+          error: '本日のAI相談回数の上限（3回）に達しました',
+          limit: CONSULTATION_LIMIT_FREE,
+          used,
+        });
+      }
+    } catch (e) {
+      // ai_consultations テーブルが無い場合はスキップ
+      console.error('Rate limit check skipped:', e.message);
     }
+  }
+
+  // --- OpenAI APIキーチェック ---
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error('OPENAI_API_KEY is not set');
+    // フォールバック応答を返す
+    return res.status(200).json({
+      reply: getFallbackReply(message, babyMonth),
+      usage: { used: 0, limit: isPremium ? null : CONSULTATION_LIMIT_FREE },
+    });
   }
 
   // --- プロンプト組み立て ---
   const systemPrompt = buildSystemPrompt(babyMonth, allergens);
   const messages = [{ role: 'system', content: systemPrompt }];
 
-  // 会話履歴を追加（最新10往復まで）
   if (Array.isArray(history)) {
     const recentHistory = history.slice(-20);
     for (const h of recentHistory) {
@@ -91,7 +133,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
@@ -104,40 +146,61 @@ module.exports = async function handler(req, res) {
     if (!response.ok) {
       const errBody = await response.text();
       console.error('OpenAI API error:', response.status, errBody);
-      return res.status(502).json({ error: 'AIサービスでエラーが発生しました' });
+      // OpenAIエラー時もフォールバック応答を返す
+      return res.status(200).json({
+        reply: getFallbackReply(message, babyMonth),
+        usage: { used: 0, limit: isPremium ? null : CONSULTATION_LIMIT_FREE },
+      });
     }
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content;
 
     if (!reply) {
-      return res.status(502).json({ error: 'AIから応答を取得できませんでした' });
+      return res.status(200).json({
+        reply: getFallbackReply(message, babyMonth),
+        usage: { used: 0, limit: isPremium ? null : CONSULTATION_LIMIT_FREE },
+      });
     }
 
-    // --- 使用量を記録 ---
-    await supabase.from('ai_consultations').insert({
-      user_id: user.id,
-      message: message.trim().slice(0, 500),
-      reply: reply.slice(0, 2000),
-    });
+    // --- 使用量を記録（テーブルが無くてもエラーにしない） ---
+    try {
+      await supabase.from('ai_consultations').insert({
+        user_id: user.id,
+        message: message.trim().slice(0, 500),
+        reply: reply.slice(0, 2000),
+      });
+    } catch (e) {
+      console.error('Failed to record consultation:', e.message);
+    }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const { count: usedCount } = await supabase
-      .from('ai_consultations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', todayStart.toISOString());
+    let usedCount = 0;
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from('ai_consultations')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString());
+      usedCount = count || 0;
+    } catch (e) {
+      // テーブルが無い場合はスキップ
+    }
 
     return res.status(200).json({
       reply,
       usage: {
-        used: usedCount || 0,
+        used: usedCount,
         limit: isPremium ? null : CONSULTATION_LIMIT_FREE,
       },
     });
   } catch (err) {
     console.error('ai-consultation error:', err);
-    return res.status(500).json({ error: 'サーバー内部エラーが発生しました' });
+    // 最後のフォールバック
+    return res.status(200).json({
+      reply: getFallbackReply(message, babyMonth),
+      usage: { used: 0, limit: isPremium ? null : CONSULTATION_LIMIT_FREE },
+    });
   }
 };
