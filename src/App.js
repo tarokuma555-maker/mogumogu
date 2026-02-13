@@ -1317,68 +1317,54 @@ const POPULAR_COMBOS = [
   { id: 'c4', items: ['豆腐', 'トマト'], emoji1: '🫧', emoji2: '🍅', label: '豆腐 × トマト', description: 'さっぱりタンパク質' },
 ];
 
-// ---------- 広告データ（12種） ----------
-const AD_BANNERS = [
-  { id: 'ad01', brand: 'コープデリ', emoji: '🚚', color: '#00833E', tagline: '子育て家庭に大人気！', desc: '離乳食食材も玄関先にお届け', cta: '無料資料請求はこちら', url: 'https://efriends.coopdeli.jp/' },
-  { id: 'ad02', brand: 'プレミアムウォーター', emoji: '💧', color: '#0077C8', tagline: 'ミルク作りに安心の天然水', desc: '赤ちゃんにやさしい軟水ウォーターサーバー', cta: 'お得に始める', url: 'https://premium-water.net/' },
-  { id: 'ad03', brand: 'トイサブ！', emoji: '🧸', color: '#FF6B9D', tagline: '知育おもちゃのサブスク', desc: '月齢にぴったりのおもちゃが届く', cta: '初月半額キャンペーン', url: 'https://toysub.net/' },
-  { id: 'ad04', brand: 'カインデスト', emoji: '🍼', color: '#7EC8B0', tagline: '小児科医監修の離乳食', desc: 'オーガニック素材のベビーフード定期便', cta: '初回限定セットを見る', url: 'https://the-kindest.com/' },
-  { id: 'ad05', brand: 'Famm出張撮影', emoji: '📸', color: '#F5A623', tagline: '家族の思い出をプロの写真で', desc: '離乳食デビューの記念撮影にも', cta: '撮影を予約する', url: 'https://famm.us/ja/photography' },
-  { id: 'ad06', brand: 'Oisix', emoji: '🥬', color: '#7CB342', tagline: 'Kit Oisixで時短ごはん', desc: '離乳食取り分けレシピ付きミールキット', cta: 'おためしセット1,980円', url: 'https://www.oisix.com/' },
-  { id: 'ad07', brand: 'CaSy', emoji: '✨', color: '#6C63FF', tagline: '家事代行で育児に余裕を', desc: '料理・掃除をプロにおまかせ', cta: '初回お試し2,500円〜', url: 'https://casy.co.jp/' },
-  { id: 'ad08', brand: 'ほけんの窓口', emoji: '🛡️', color: '#E65100', tagline: '学資保険の無料相談', desc: 'お子さまの将来に備える保険選び', cta: '無料で相談する', url: 'https://www.hokennomadoguchi.com/' },
-  { id: 'ad09', brand: 'ブラウン ブレンダー', emoji: '🔧', color: '#333333', tagline: '離乳食作りの必需品', desc: 'ハンドブレンダー マルチクイック', cta: '詳しく見る', url: 'https://www.braunhousehold.com/ja-jp/hand-blenders' },
-  { id: 'ad10', brand: 'リッチェル 冷凍容器', emoji: '🧊', color: '#00BCD4', tagline: 'わけわけフリージング', desc: '離乳食の小分け冷凍に便利な容器', cta: '商品をチェック', url: 'https://www.richell.co.jp/shop/baby' },
-  { id: 'ad11', brand: 'パルシステム', emoji: '🐄', color: '#E8383D', tagline: '産直食材を食卓へ', desc: 'うらごし野菜シリーズが離乳食に便利', cta: '無料おためしセット', url: 'https://www.pal-system.co.jp/' },
-  { id: 'ad12', brand: 'ユニクロベビー', emoji: '👶', color: '#FF0000', tagline: 'やわらか素材のベビー服', desc: '食べこぼしに強い！洗濯ラクちん', cta: 'オンラインストアへ', url: 'https://www.uniqlo.com/jp/ja/baby' },
+// ---------- 広告データ（アフィリエイト） ----------
+const BANNER_ADS = [
+  { id: 'ad-oisix', title: '🥬 Oisix おためしセット', description: '離乳食にも使える有機野菜をお試し', category: '食材宅配', gradient: 'linear-gradient(135deg, #81C784, #388E3C)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8A+E0A65U+1YGO+6VCBM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8A+E0A65U+1YGO+6VCBM' },
+  { id: 'ad-premium-water', title: '🚰 プレミアムウォーター', description: '赤ちゃんのミルク作りに最適なお水', category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #4FC3F7, #0288D1)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4784FM+2NB4+5ZEMQ' },
+  { id: 'ad-combi', title: '👶 コンビ公式', description: 'ベビーカー・チャイルドシートの定番', category: 'ベビー用品', gradient: 'linear-gradient(135deg, #F48FB1, #E91E63)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+5CX82+450Q+669JM', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+5CX82+450Q+669JM' },
+  { id: 'ad-belta', title: '💊 ベルタ葉酸サプリ', description: '妊娠中・授乳中のママに', category: 'ママ向けサプリ', gradient: 'linear-gradient(135deg, #F48FB1, #C2185B)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4UG10Y+2M7O+NVWSI' },
+  { id: 'ad-famm', title: '📸 Famm 出張撮影', description: '家族の思い出をプロが撮影', category: '育児サービス', gradient: 'linear-gradient(135deg, #FFAB91, #FF5722)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+RZE7M+4DHQ+HZI6Q' },
+  { id: 'ad-sweet-mommy', title: '🤱 スウィートマミー', description: 'おしゃれな授乳服・マタニティウェア', category: 'マタニティ・ベビー', gradient: 'linear-gradient(135deg, #F8BBD0, #EC407A)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6', impUrl: 'https://www18.a8.net/0.gif?a8mat=4AXA8B+4IJCXE+3FF2+HV7V6' },
+  { id: 'ad-oken-water', title: '💧 オーケンウォーター', description: '赤ちゃんにやさしい天然水', category: 'ウォーターサーバー', gradient: 'linear-gradient(135deg, #80DEEA, #00ACC1)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE', impUrl: 'https://www12.a8.net/0.gif?a8mat=4AXA8B+4OHOZ6+1LOO+5YRHE' },
+  { id: 'ad-ed-inter', title: '🧩 エド・インター 知育おもちゃ', description: '木のぬくもり知育おもちゃ', category: '知育玩具', gradient: 'linear-gradient(135deg, #A5D6A7, #43A047)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+36B8XE+4XVW+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+36B8XE+4XVW+5YJRM' },
+  { id: 'ad-marutomo', title: '🐟 マルトモ だし・食品', description: '赤ちゃんの離乳食にも安心のおだし', category: '食品', gradient: 'linear-gradient(135deg, #FFB74D, #F57C00)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+11IBW2+5CTE+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+11IBW2+5CTE+5YJRM' },
+  { id: 'ad-skater', title: '🍽️ スケーター ベビー食器', description: 'かわいいベビー食器・お弁当箱', category: 'ベビー食器', gradient: 'linear-gradient(135deg, #80CBC4, #00897B)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+33XIIA+54ME+5YJRM', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+33XIIA+54ME+5YJRM' },
+  { id: 'ad-theatre', title: '🌟 テアトルアカデミー', description: '赤ちゃんモデル・オーディション', category: '赤ちゃんモデル', gradient: 'linear-gradient(135deg, #FFE082, #FFA000)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A', impUrl: 'https://www15.a8.net/0.gif?a8mat=4AXA8B+4D6GHE+1E2S+6DC6A' },
+  { id: 'ad-drobe', title: '👗 DROBE パーソナルスタイリング', description: '忙しいママにプロがコーデ提案', category: 'ファッション', gradient: 'linear-gradient(135deg, #CE93D8, #7B1FA2)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+1U34XE+4GV4+5YJRM', impUrl: 'https://www16.a8.net/0.gif?a8mat=4AXA8B+1U34XE+4GV4+5YJRM' },
+  { id: 'ad-onigo', title: '🛒 OniGO 即配スーパー', description: '離乳食の食材を最短10分でお届け', category: '即配スーパー', gradient: 'linear-gradient(135deg, #80CBC4, #009688)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM', impUrl: 'https://www13.a8.net/0.gif?a8mat=4AXA8B+3VBGC2+4Z4W+5YJRM' },
+  { id: 'ad-bellvie', title: '🎁 ベルビー 出産祝い', description: '出産祝い・名入れギフト', category: 'ギフト', gradient: 'linear-gradient(135deg, #FFAB91, #E64A19)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+4NW9DE+3SJA+60OXE', impUrl: 'https://www14.a8.net/0.gif?a8mat=4AXA8B+4NW9DE+3SJA+60OXE' },
+  { id: 'ad-kimuratan', title: '👕 キムラタン ベビー服', description: 'かわいいベビー服・子供服', category: 'ベビー服', gradient: 'linear-gradient(135deg, #CE93D8, #AB47BC)', url: 'https://px.a8.net/svt/ejp?a8mat=4AXA8B+448YEQ+1KUO+64C3M', impUrl: 'https://www17.a8.net/0.gif?a8mat=4AXA8B+448YEQ+1KUO+64C3M' },
 ];
 
-// ---------- A/Bテスト設定 ----------
-// 各スロット(広告枠)に A/B 2種の広告を割り当て、50%ずつ表示
-const AB_TESTS = [
-  { slot: 'slot-0', adA: 'ad01', adB: 'ad02' },
-  { slot: 'slot-1', adA: 'ad03', adB: 'ad04' },
-  { slot: 'slot-2', adA: 'ad05', adB: 'ad06' },
-  { slot: 'slot-3', adA: 'ad07', adB: 'ad08' },
-  { slot: 'slot-4', adA: 'ad09', adB: 'ad10' },
-  { slot: 'slot-5', adA: 'ad11', adB: 'ad12' },
-];
-
-const adById = {};
-AD_BANNERS.forEach(ad => { adById[ad.id] = ad; });
-
-// セッション内で同じスロットには同じバリアントを返す（一貫性）
-const slotVariantCache = {};
+// ページ読み込み時にシャッフル
+const shuffledAds = (() => {
+  const ads = [...BANNER_ADS];
+  for (let i = ads.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ads[i], ads[j]] = [ads[j], ads[i]];
+  }
+  return ads;
+})();
 
 function getAd(index) {
-  const slotIndex = Math.floor(index) % AB_TESTS.length;
-  const test = AB_TESTS[slotIndex];
-
-  // セッション内キャッシュ: 同じスロットは常に同じバリアント
-  if (!slotVariantCache[test.slot]) {
-    slotVariantCache[test.slot] = Math.random() < 0.5 ? 'A' : 'B';
-  }
-  const variant = slotVariantCache[test.slot];
-  const adId = variant === 'A' ? test.adA : test.adB;
-  const ad = adById[adId] || AD_BANNERS[0];
-
-  // A/Bテスト情報を広告オブジェクトに付与
-  return { ...ad, _slot: test.slot, _variant: variant };
+  return shuffledAds[Math.floor(index) % shuffledAds.length];
 }
 
-// 広告イベント記録（fire-and-forget、スロット・バリアント情報付き）
-function trackAdEvent(adId, eventType, slot, variant) {
-  const row = { ad_id: adId, event_type: eventType };
-  if (slot) row.slot = slot;
-  if (variant) row.variant = variant;
-  supabase.from('ad_analytics').insert(row).then(({ error }) => {
-    if (error) console.error('ad_analytics insert error:', error);
-  });
+// 広告ヘルパー: タイトルから絵文字とテキストを抽出
+function adEmoji(ad) { return ad.title.match(/^./u)?.[0] || '📢'; }
+function adName(ad) { return ad.title.replace(/^.\s?/u, ''); }
+function adColor(ad) { return ad.gradient.match(/#[0-9A-Fa-f]{6}/g)?.[1] || '#FF6B35'; }
+
+// 広告インプレッション計測（impUrl ピクセル読み込み）
+function trackAdImpression(ad) {
+  if (ad.impUrl) {
+    const img = new Image();
+    img.src = ad.impUrl;
+  }
 }
 
 // 広告クリック処理
 function handleAdClick(ad) {
-  trackAdEvent(ad.id, 'click', ad._slot, ad._variant);
   if (ad.url) window.open(ad.url, '_blank', 'noopener,noreferrer');
 }
 
@@ -1494,8 +1480,9 @@ function Header({ title, subtitle }) {
 function BannerAd({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
+  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdImpression(ad); }, [ad, isPremium, dismissed]);
   if (isPremium || dismissed || !ad) return null;
+  const color = adColor(ad);
   return (
     <div className="tap-scale" onClick={() => handleAdClick(ad)} style={{
       background: '#fff', borderRadius: 18, border: `1px solid ${COLORS.border}`,
@@ -1503,18 +1490,18 @@ function BannerAd({ ad, style: extraStyle }) {
       position: 'relative', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: 'pointer', ...extraStyle,
     }}>
       <div style={{
-        width: 44, height: 44, borderRadius: 12, background: `${ad.color}15`,
+        width: 44, height: 44, borderRadius: 12, background: `${color}15`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0,
-      }}>{ad.emoji}</div>
+      }}>{adEmoji(ad)}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <span style={{ fontWeight: 700, fontSize: FONT.sm, color: COLORS.text }}>{ad.brand}</span>
+          <span style={{ fontWeight: 700, fontSize: FONT.sm, color: COLORS.text }}>{adName(ad)}</span>
           <span style={{
             color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
           }}>PR</span>
         </div>
         <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.4,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.tagline}</div>
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.description}</div>
       </div>
       <button onClick={(e) => { e.stopPropagation(); setDismissed(true); }} style={{
         position: 'absolute', top: 6, right: 8, background: 'none', border: 'none',
@@ -1529,8 +1516,9 @@ function BannerAd({ ad, style: extraStyle }) {
 function BannerAdLarge({ ad, style: extraStyle }) {
   const { isPremium } = usePremium();
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
+  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdImpression(ad); }, [ad, isPremium, dismissed]);
   if (isPremium || dismissed || !ad) return null;
+  const color = adColor(ad);
   return (
     <div style={{
       background: '#fff', borderRadius: 20, border: `1px solid ${COLORS.border}`,
@@ -1544,7 +1532,7 @@ function BannerAdLarge({ ad, style: extraStyle }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>✕</button>
       <div style={{
-        background: `${ad.color}12`,
+        background: `${color}12`,
         padding: `${SPACE.xl}px ${SPACE.lg}px ${SPACE.lg}px`, position: 'relative',
         textAlign: 'center',
       }}>
@@ -1552,78 +1540,87 @@ function BannerAdLarge({ ad, style: extraStyle }) {
           position: 'absolute', top: 10, left: 12,
           color: COLORS.textMuted, fontSize: FONT.xs, fontWeight: 600,
         }}>PR</span>
-        <div style={{ fontSize: 38, marginBottom: 6 }}>{ad.emoji}</div>
-        <div style={{ fontSize: FONT.lg, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>{ad.brand}</div>
-        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5 }}>{ad.desc}</div>
+        <div style={{ fontSize: 38, marginBottom: 6 }}>{adEmoji(ad)}</div>
+        <div style={{ fontSize: FONT.lg, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>{adName(ad)}</div>
+        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5 }}>{ad.description}</div>
       </div>
       <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px`, textAlign: 'center' }}>
-        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginBottom: SPACE.sm }}>{ad.tagline}</div>
+        <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginBottom: SPACE.sm }}>{ad.category}</div>
         <button className="tap-scale" onClick={(e) => { e.stopPropagation(); handleAdClick(ad); }} style={{
-          background: `linear-gradient(135deg, ${ad.color}, ${ad.color}cc)`,
+          background: ad.gradient,
           color: '#fff', border: 'none', borderRadius: 12, padding: '10px 24px',
           fontWeight: 700, fontSize: FONT.base, cursor: 'pointer', fontFamily: 'inherit',
-          boxShadow: `0 2px 8px ${ad.color}22`,
-        }}>{ad.cta}</button>
+          boxShadow: `0 2px 8px ${color}22`,
+        }}>詳しく見る</button>
       </div>
     </div>
   );
 }
 
-function ShortsAd({ ad, cardHeight }) {
+function AdCard({ ad, cardHeight }) {
   const { isPremium } = usePremium();
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => { if (ad && !isPremium && !dismissed) trackAdEvent(ad.id, 'impression', ad._slot, ad._variant); }, [ad, isPremium, dismissed]);
-  if (isPremium || dismissed || !ad) return null;
+  useEffect(() => { if (ad && !isPremium) trackAdImpression(ad); }, [ad, isPremium]);
+  if (isPremium || !ad) return null;
   return (
-    <div style={{
-      height: cardHeight, minHeight: 500,
-      background: `linear-gradient(160deg, ${ad.color}ee, ${ad.color}88)`,
-      position: 'relative', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      scrollSnapAlign: 'start', flexShrink: 0, overflow: 'hidden',
-    }}>
-      {/* 背景装飾 */}
+    <div
+      onClick={() => handleAdClick(ad)}
+      style={{
+        width: '100%', height: cardHeight || 'calc(100vh - 60px)',
+        background: ad.gradient, scrollSnapAlign: 'start',
+        position: 'relative', cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: 24, flexShrink: 0,
+      }}
+    >
+      {/* PRバッジ */}
       <div style={{
-        position: 'absolute', top: -60, right: -60, width: 200, height: 200,
-        borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
-      }} />
+        position: 'absolute', top: 16, left: 16,
+        background: 'rgba(0,0,0,0.5)',
+        color: '#fff', fontSize: 11,
+        padding: '4px 10px', borderRadius: 4,
+      }}>PR</div>
+
+      {/* 広告コンテンツ */}
       <div style={{
-        position: 'absolute', bottom: -40, left: -40, width: 160, height: 160,
-        borderRadius: '50%', background: 'rgba(255,255,255,0.04)',
-      }} />
-      <span style={{
-        position: 'absolute', top: 52, left: 16,
-        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-        padding: '4px 12px', borderRadius: 8,
-        color: 'rgba(255,255,255,0.8)', fontSize: FONT.xs, fontWeight: 700,
-        letterSpacing: 1,
-      }}>PR</span>
-      <button onClick={() => setDismissed(true)} style={{
-        position: 'absolute', top: 48, right: 16, background: 'rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(8px)',
-        border: 'none', borderRadius: '50%', width: 40, height: 40,
-        color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'background 0.2s',
-      }}>✕</button>
-      <div style={{ fontSize: 72, marginBottom: SPACE.xl, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>{ad.emoji}</div>
-      <div style={{ color: '#fff', fontWeight: 900, fontSize: 26, marginBottom: 10, textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-        {ad.brand}
+        textAlign: 'center', color: '#fff',
+        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>
+          {adEmoji(ad)}
+        </div>
+        <div style={{
+          fontSize: 24, fontWeight: 'bold',
+          marginBottom: 12, lineHeight: 1.3,
+        }}>
+          {adName(ad)}
+        </div>
+        <div style={{
+          fontSize: 16, opacity: 0.9,
+          marginBottom: 32,
+        }}>
+          {ad.description}
+        </div>
+        <div style={{
+          background: '#fff', color: '#333',
+          borderRadius: 30, padding: '14px 36px',
+          fontSize: 16, fontWeight: 'bold',
+          display: 'inline-block',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        }}>
+          詳しく見る →
+        </div>
       </div>
+
+      {/* カテゴリバッジ */}
       <div style={{
-        color: 'rgba(255,255,255,0.9)', fontSize: FONT.base, textAlign: 'center',
-        maxWidth: 280, lineHeight: 1.7, marginBottom: SPACE.md,
-      }}>{ad.desc}</div>
-      <div style={{
-        color: 'rgba(255,255,255,0.55)', fontSize: FONT.sm, marginBottom: SPACE.xxl, textAlign: 'center',
-      }}>{ad.tagline}</div>
-      <button className="tap-scale" onClick={() => handleAdClick(ad)} style={{
-        background: '#fff', color: ad.color, border: 'none',
-        borderRadius: 50, padding: '16px 52px', fontWeight: 900, fontSize: FONT.lg,
-        cursor: 'pointer', fontFamily: 'inherit',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-        transition: 'transform 0.2s ease-out, box-shadow 0.2s',
-      }}>{ad.cta}</button>
+        position: 'absolute', bottom: 24,
+        background: 'rgba(255,255,255,0.2)',
+        color: '#fff', fontSize: 12,
+        padding: '6px 14px', borderRadius: 16,
+      }}>
+        {ad.category}
+      </div>
     </div>
   );
 }
@@ -2125,17 +2122,21 @@ function HomeTab() {
     }
   }, [handleScroll]);
 
-  // 広告挿入した表示リスト構築
+  // 広告挿入した表示リスト構築（プレミアム会員は広告なし）
+  const { isPremium } = usePremium();
   const displayItems = useMemo(() => {
+    if (isPremium) return videos.map(v => ({ type: 'video', data: v }));
     const items = [];
+    let adIndex = 0;
     videos.forEach((item, i) => {
       items.push({ type: 'video', data: item });
       if ((i + 1) % 4 === 0) {
-        items.push({ type: 'ad', data: getAd(Math.floor(i / 4)) });
+        items.push({ type: 'ad', data: getAd(adIndex) });
+        adIndex++;
       }
     });
     return items;
-  }, [videos]);
+  }, [videos, isPremium]);
 
   // ローディング画面
   if (loading) {
@@ -2203,7 +2204,7 @@ function HomeTab() {
                 isActive={i === currentIndex}
               />
             ) : (
-              <ShortsAd ad={entry.data} cardHeight={cardHeight} />
+              <AdCard ad={entry.data} cardHeight={cardHeight} />
             )}
           </div>
         ))}
@@ -4056,9 +4057,7 @@ function RecipeTab() {
 // ---------- 広告パフォーマンスパネル ----------
 function AdAnalyticsPanel() {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState('overview'); // 'overview' | 'abtest'
   const [stats, setStats] = useState(null);
-  const [abResults, setAbResults] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const loadStats = async () => {
@@ -4068,10 +4067,9 @@ function AdAnalyticsPanel() {
     try {
       const { data, error } = await supabase
         .from('ad_analytics')
-        .select('ad_id, event_type, slot, variant');
+        .select('ad_id, event_type');
       if (error) { console.error('ad_analytics query error:', error); setLoading(false); return; }
 
-      // --- 広告別集計 ---
       const map = {};
       (data || []).forEach(row => {
         if (!map[row.ad_id]) map[row.ad_id] = { impressions: 0, clicks: 0 };
@@ -4079,41 +4077,14 @@ function AdAnalyticsPanel() {
         if (row.event_type === 'click') map[row.ad_id].clicks++;
       });
 
-      const result = AD_BANNERS.map(ad => ({
-        id: ad.id, brand: ad.brand, emoji: ad.emoji,
+      const result = BANNER_ADS.map(ad => ({
+        id: ad.id, name: adName(ad), emoji: adEmoji(ad),
         impressions: map[ad.id]?.impressions || 0,
         clicks: map[ad.id]?.clicks || 0,
         ctr: map[ad.id]?.impressions > 0
           ? ((map[ad.id].clicks / map[ad.id].impressions) * 100).toFixed(1) : '0.0',
       })).sort((a, b) => parseFloat(b.ctr) - parseFloat(a.ctr));
       setStats(result);
-
-      // --- A/Bテスト集計 ---
-      const abMap = {}; // { slot: { A: {adId, imp, click}, B: {adId, imp, click} } }
-      (data || []).forEach(row => {
-        if (!row.slot || !row.variant) return;
-        if (!abMap[row.slot]) abMap[row.slot] = {};
-        if (!abMap[row.slot][row.variant]) abMap[row.slot][row.variant] = { adId: row.ad_id, impressions: 0, clicks: 0 };
-        abMap[row.slot][row.variant].adId = row.ad_id;
-        if (row.event_type === 'impression') abMap[row.slot][row.variant].impressions++;
-        if (row.event_type === 'click') abMap[row.slot][row.variant].clicks++;
-      });
-
-      const abRows = AB_TESTS.map(test => {
-        const a = abMap[test.slot]?.A || { adId: test.adA, impressions: 0, clicks: 0 };
-        const b = abMap[test.slot]?.B || { adId: test.adB, impressions: 0, clicks: 0 };
-        const ctrA = a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0;
-        const ctrB = b.impressions > 0 ? (b.clicks / b.impressions) * 100 : 0;
-        const winner = (a.impressions + b.impressions) < 10 ? null : ctrA > ctrB ? 'A' : ctrB > ctrA ? 'B' : null;
-        return {
-          slot: test.slot,
-          adA: adById[test.adA], adB: adById[test.adB],
-          a: { ...a, ctr: ctrA.toFixed(1) },
-          b: { ...b, ctr: ctrB.toFixed(1) },
-          winner,
-        };
-      });
-      setAbResults(abRows);
     } catch (e) { console.error('ad_analytics error:', e); }
     setLoading(false);
   };
@@ -4150,146 +4121,51 @@ function AdAnalyticsPanel() {
             <div style={{ textAlign: 'center', padding: SPACE.xl, color: COLORS.textLight, fontSize: FONT.sm }}>読み込み中...</div>
           ) : stats ? (
             <>
-              {/* タブ切替 */}
-              <div style={{ display: 'flex', gap: SPACE.xs, marginBottom: SPACE.md }}>
-                {[{ key: 'overview', label: '全体' }, { key: 'abtest', label: 'A/Bテスト' }].map(t => (
-                  <button key={t.key} onClick={() => setTab(t.key)} style={{
-                    flex: 1, padding: `${SPACE.sm}px`, borderRadius: 10,
-                    border: `1.5px solid ${tab === t.key ? COLORS.primary : COLORS.border}`,
-                    background: tab === t.key ? `${COLORS.primary}10` : '#fff',
-                    color: tab === t.key ? COLORS.primary : COLORS.textLight,
-                    fontWeight: 700, fontSize: FONT.sm, cursor: 'pointer', fontFamily: 'inherit',
-                    transition: 'all 0.2s',
-                  }}>{t.label}</button>
-                ))}
+              {/* サマリー */}
+              <div style={{ display: 'flex', gap: SPACE.sm, marginBottom: SPACE.md }}>
+                <div style={{ flex: 1, background: `${COLORS.primary}10`, borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総表示</div>
+                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.primary }}>{totalImpressions.toLocaleString()}</div>
+                </div>
+                <div style={{ flex: 1, background: '#E8F5E910', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総クリック</div>
+                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#4CAF50' }}>{totalClicks.toLocaleString()}</div>
+                </div>
+                <div style={{ flex: 1, background: '#FFF3E010', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
+                  <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>平均CTR</div>
+                  <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#FF9800' }}>
+                    {totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : '0.0'}%
+                  </div>
+                </div>
               </div>
 
-              {tab === 'overview' && (
-                <>
-                  {/* サマリー */}
-                  <div style={{ display: 'flex', gap: SPACE.sm, marginBottom: SPACE.md }}>
-                    <div style={{ flex: 1, background: `${COLORS.primary}10`, borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
-                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総表示</div>
-                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: COLORS.primary }}>{totalImpressions.toLocaleString()}</div>
-                    </div>
-                    <div style={{ flex: 1, background: '#E8F5E910', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
-                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>総クリック</div>
-                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#4CAF50' }}>{totalClicks.toLocaleString()}</div>
-                    </div>
-                    <div style={{ flex: 1, background: '#FFF3E010', borderRadius: 12, padding: SPACE.md, textAlign: 'center' }}>
-                      <div style={{ fontSize: FONT.xs, color: COLORS.textLight, marginBottom: 4 }}>平均CTR</div>
-                      <div style={{ fontSize: FONT.xl, fontWeight: 900, color: '#FF9800' }}>
-                        {totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : '0.0'}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 広告別テーブル */}
-                  <div style={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
-                    <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
-                      padding: `${SPACE.sm}px ${SPACE.md}px`,
-                      background: COLORS.bg, fontWeight: 700, fontSize: FONT.xs, color: COLORS.textMuted,
-                    }}>
-                      <span>広告</span>
-                      <span style={{ textAlign: 'right' }}>表示</span>
-                      <span style={{ textAlign: 'right' }}>Click</span>
-                      <span style={{ textAlign: 'right' }}>CTR</span>
-                    </div>
-                    {stats.map(row => (
-                      <div key={row.id} style={{
-                        display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
-                        padding: `${SPACE.sm}px ${SPACE.md}px`,
-                        borderTop: `1px solid ${COLORS.border}`, alignItems: 'center',
-                      }}>
-                        <span style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {row.emoji} {row.brand}
-                        </span>
-                        <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.impressions}</span>
-                        <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.clicks}</span>
-                        <span style={{ textAlign: 'right', fontSize: FONT.sm, fontWeight: 700, color: ctrColor(row.ctr) }}>{row.ctr}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {tab === 'abtest' && abResults && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE.md }}>
-                  {abResults.map(test => (
-                    <div key={test.slot} style={{
-                      borderRadius: 14, border: `1px solid ${COLORS.border}`,
-                      overflow: 'hidden',
-                    }}>
-                      {/* スロットヘッダー */}
-                      <div style={{
-                        background: COLORS.bg, padding: `${SPACE.sm}px ${SPACE.md}px`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      }}>
-                        <span style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.text }}>
-                          {test.slot}
-                        </span>
-                        {test.winner && (
-                          <span style={{
-                            fontSize: FONT.xs, fontWeight: 700, padding: '2px 8px', borderRadius: 8,
-                            background: test.winner === 'A' ? '#4CAF5020' : '#2196F320',
-                            color: test.winner === 'A' ? '#4CAF50' : '#2196F3',
-                          }}>
-                            {test.winner} が優勢
-                          </span>
-                        )}
-                        {!test.winner && (test.a.impressions + test.b.impressions) < 10 && (
-                          <span style={{ fontSize: FONT.xs, color: COLORS.textMuted }}>
-                            データ不足
-                          </span>
-                        )}
-                      </div>
-
-                      {/* A vs B 比較 */}
-                      {[
-                        { label: 'A', data: test.a, ad: test.adA, isWinner: test.winner === 'A' },
-                        { label: 'B', data: test.b, ad: test.adB, isWinner: test.winner === 'B' },
-                      ].map(v => (
-                        <div key={v.label} style={{
-                          padding: `${SPACE.sm}px ${SPACE.md}px`,
-                          borderTop: `1px solid ${COLORS.border}`,
-                          display: 'flex', alignItems: 'center', gap: SPACE.sm,
-                          background: v.isWinner ? (v.label === 'A' ? '#4CAF5008' : '#2196F308') : '#fff',
-                        }}>
-                          <span style={{
-                            width: 24, height: 24, borderRadius: 6,
-                            background: v.label === 'A' ? '#4CAF5018' : '#2196F318',
-                            color: v.label === 'A' ? '#4CAF50' : '#2196F3',
-                            fontSize: FONT.xs, fontWeight: 900,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                          }}>{v.label}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {v.ad?.emoji} {v.ad?.brand}
-                            </div>
-                            <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 1 }}>
-                              {v.data.impressions} 表示 / {v.data.clicks} Click
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: FONT.base, fontWeight: 900, color: ctrColor(v.data.ctr) }}>
-                              {v.data.ctr}%
-                            </div>
-                            {/* CTR バー */}
-                            <div style={{ width: 50, height: 4, borderRadius: 2, background: COLORS.border, marginTop: 3 }}>
-                              <div style={{
-                                width: `${Math.min(parseFloat(v.data.ctr) * 10, 100)}%`,
-                                height: '100%', borderRadius: 2,
-                                background: v.label === 'A' ? '#4CAF50' : '#2196F3',
-                              }} />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+              {/* 広告別テーブル */}
+              <div style={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
+                  padding: `${SPACE.sm}px ${SPACE.md}px`,
+                  background: COLORS.bg, fontWeight: 700, fontSize: FONT.xs, color: COLORS.textMuted,
+                }}>
+                  <span>広告</span>
+                  <span style={{ textAlign: 'right' }}>表示</span>
+                  <span style={{ textAlign: 'right' }}>Click</span>
+                  <span style={{ textAlign: 'right' }}>CTR</span>
                 </div>
-              )}
+                {stats.map(row => (
+                  <div key={row.id} style={{
+                    display: 'grid', gridTemplateColumns: '1fr 60px 60px 55px',
+                    padding: `${SPACE.sm}px ${SPACE.md}px`,
+                    borderTop: `1px solid ${COLORS.border}`, alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: FONT.sm, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.emoji} {row.name}
+                    </span>
+                    <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.impressions}</span>
+                    <span style={{ textAlign: 'right', fontSize: FONT.sm, color: COLORS.textLight }}>{row.clicks}</span>
+                    <span style={{ textAlign: 'right', fontSize: FONT.sm, fontWeight: 700, color: ctrColor(row.ctr) }}>{row.ctr}%</span>
+                  </div>
+                ))}
+              </div>
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: SPACE.xl, color: COLORS.textLight, fontSize: FONT.sm }}>
