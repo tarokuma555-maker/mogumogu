@@ -2312,6 +2312,41 @@ function HomeTab() {
   );
 }
 
+// ---------- レシピ外部リンク ----------
+function RecipeSourceLinks({ recipeName }) {
+  const searchQuery = encodeURIComponent(`離乳食 ${recipeName} レシピ`);
+  const links = [
+    { name: 'クックパッド', icon: '🔍', url: `https://cookpad.com/search/${encodeURIComponent('離乳食 ' + recipeName)}`, color: '#F48120' },
+    { name: '楽天レシピ', icon: '📖', url: `https://recipe.rakuten.co.jp/search/${encodeURIComponent('離乳食 ' + recipeName)}/`, color: '#BF0000' },
+    { name: 'YouTube', icon: '▶', url: `https://www.youtube.com/results?search_query=${searchQuery}`, color: '#FF0000' },
+    { name: 'Google', icon: '🌐', url: `https://www.google.com/search?q=${searchQuery}`, color: '#4285F4' },
+  ];
+  return (
+    <div style={{ marginTop: 20, padding: 16, background: '#F5F5F5', borderRadius: 12 }}>
+      <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: '#333' }}>
+        📚 このレシピの詳しい作り方を見る
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {links.map((link) => (
+          <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+            background: '#fff', borderRadius: 10, textDecoration: 'none', color: '#333',
+            fontSize: 13, fontWeight: 'bold', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            border: `1px solid ${link.color}22`,
+          }}>
+            <span style={{ fontSize: 16 }}>{link.icon}</span>
+            <span style={{ color: link.color }}>{link.name}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#999' }}>→</span>
+          </a>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: '#999', marginTop: 10, textAlign: 'center' }}>
+        外部サイトに移動します
+      </div>
+    </div>
+  );
+}
+
 // ---------- レシピカード ----------
 function RecipeCard({ recipe, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen || false);
@@ -2433,6 +2468,9 @@ function RecipeCard({ recipe, defaultOpen }) {
               {recipe.tip}
             </div>
           </div>
+
+          {/* 外部レシピリンク */}
+          <RecipeSourceLinks recipeName={recipe.title} />
         </div>
       )}
     </div>
@@ -2690,7 +2728,7 @@ function SearchTab() {
             <React.Fragment key={r.id}>
               <RecipeCard recipe={r} defaultOpen={results.length === 1} />
               {i === 2 && <LargeAdCard ad={getAd(4)} />}
-              {i === 5 && <LargeAdCard ad={getAd(5)} />}
+              {i === 6 && <LargeAdCard ad={getAd(5)} />}
             </React.Fragment>
           ))}
           {results.length === 0 && (
