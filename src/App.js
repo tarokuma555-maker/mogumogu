@@ -1761,7 +1761,7 @@ const SHORTS_PAGE_SIZE = 20;
 
 async function fetchFreshVideos(stage) {
   try {
-    const res = await fetch(`/api/fresh-videos?stage=${encodeURIComponent(stage || '')}`);
+    const res = await fetch(`/api/videos?action=fresh&stage=${encodeURIComponent(stage || '')}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.videos || [];
@@ -1798,7 +1798,7 @@ async function fetchRandomVideos(excludeIds = []) {
       params.set('exclude', JSON.stringify(excludeIds));
     }
 
-    const res = await fetch(`/api/random-videos?${params}`);
+    const res = await fetch(`/api/videos?action=random&${params}`);
     if (!res.ok) {
       console.error('random-videos API error:', res.status);
       return [];
@@ -3397,7 +3397,7 @@ function ShareTab() {
     setLoadingPosts(true);
     try {
       const [shareRes, userRes] = await Promise.all([
-        fetch(`/api/random-share-posts?limit=${SHARE_PAGE_SIZE}`).then(r => r.ok ? r.json() : { posts: [] }),
+        fetch(`/api/share-posts?action=random&limit=${SHARE_PAGE_SIZE}`).then(r => r.ok ? r.json() : { posts: [] }),
         supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
       ]);
       setSharePosts((shareRes.posts || []).map(p => ({ ...p, _source: 'share' })));

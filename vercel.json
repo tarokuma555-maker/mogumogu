@@ -9,11 +9,11 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/collect-share-posts?refresh=true",
+      "path": "/api/share-posts?action=collect&refresh=true",
       "schedule": "0 22 * * 0"
     },
     {
-      "path": "/api/cleanup-videos",
+      "path": "/api/videos?action=cleanup",
       "schedule": "0 20 * * *"
     }
   ]
