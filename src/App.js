@@ -186,6 +186,12 @@ function PremiumProvider({ children }) {
     setPremiumVersion((v) => v + 1);
   }, []);
 
+  // 決済確認後に即座にプレミアムを有効化（API・DB 不要で即反映）
+  const activatePremium = useCallback(() => {
+    setIsPremium(true);
+    localStorage.setItem('mogumogu_premium', 'true');
+  }, []);
+
   const isPremiumRef = useRef(isPremium);
   isPremiumRef.current = isPremium;
 
@@ -305,7 +311,7 @@ function PremiumProvider({ children }) {
       searchCount, recipeGenCount, commentCount,
       trySearch, tryRecipeGen, tryPost, tryComment,
       showPaywall, setShowPaywall, paywallReason, setPaywallReason,
-      refreshPremium, checkPremiumStatus,
+      refreshPremium, checkPremiumStatus, activatePremium,
     }}>
       {children}
     </PremiumContext.Provider>
@@ -4442,47 +4448,59 @@ function PremiumScreen({ onClose }) {
 }
 
 // ---------- プレミアム登録成功画面 ----------
-function PremiumSuccessScreen({ onClose }) {
-  const { user } = useAuth();
-  const { subscription, refetch } = useSubscription();
-  const { checkPremiumStatus } = usePremium();
+function PremiumSuccessScreen({ onClose, sessionId }) {
+  const { activatePremium } = usePremium();
   const [activating, setActivating] = useState(true);
+  const [subInfo, setSubInfo] = useState(null);
+  const [error, setError] = useState(null);
 
-  // ref で常に最新の関数を参照（クロージャ問題回避）
-  const checkRef = useRef(checkPremiumStatus);
-  checkRef.current = checkPremiumStatus;
-  const refetchRef = useRef(refetch);
-  refetchRef.current = refetch;
-
-  // Webhook 反映をポーリング（2秒間隔、最大30秒）
-  // user が null → non-null に変わったら再開
+  // Stripe に直接確認 + DB 更新（認証セッション不要）
   useEffect(() => {
-    if (!user) return; // 認証復元待ち
-    let cancelled = false;
-    let count = 0;
-    const poll = async () => {
-      while (!cancelled && count < 15) {
-        count++;
-        await refetchRef.current();
-        const active = await checkRef.current();
-        if (active) {
-          setActivating(false);
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
+    if (!sessionId) {
       setActivating(false);
+      setError('セッション情報がありません');
+      return;
+    }
+    let cancelled = false;
+    let attempts = 0;
+    const verify = async () => {
+      while (!cancelled && attempts < 5) {
+        attempts++;
+        try {
+          const res = await fetch('/api/verify-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await res.json();
+          if (cancelled) return;
+          if (data.isPremium) {
+            activatePremium();
+            setSubInfo(data.subscription);
+            setActivating(false);
+            return;
+          }
+        } catch (e) {
+          console.error('verify-checkout attempt failed:', e);
+        }
+        // リトライ前に3秒待つ
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!cancelled) {
+        setActivating(false);
+        setError('有効化に時間がかかっています。ページを再読み込みしてください。');
+      }
     };
-    poll();
+    verify();
     return () => { cancelled = true; };
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
-  const trialEndDate = subscription?.trial_end
-    ? new Date(subscription.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
+  const trialEndDate = subInfo?.trial_end
+    ? new Date(subInfo.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
     : '7日後';
 
-  const handleClose = async () => {
-    await checkRef.current();
+  const handleClose = () => {
     onClose();
   };
 
@@ -4502,6 +4520,11 @@ function PremiumSuccessScreen({ onClose }) {
         {activating && (
           <div style={{ fontSize: 14, color: COLORS.primary, marginBottom: 16 }}>
             プランを有効化しています...
+          </div>
+        )}
+        {error && (
+          <div style={{ fontSize: 13, color: '#e74c3c', marginBottom: 16 }}>
+            {error}
           </div>
         )}
         <div style={{
@@ -5021,6 +5044,19 @@ function App() {
   const [premiumScreen, setPremiumScreen] = useState(null); // 'premium' | 'success' | null
   const [checkoutStatus, setCheckoutStatus] = useState(null); // 'success' | 'cancel'
 
+  // session_id を URL から同期的に取得（useEffect より前に確定）
+  const [checkoutSessionId] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('session_id');
+      if (sid) {
+        sessionStorage.setItem('mogumogu_checkout_session', sid);
+        return sid;
+      }
+      return sessionStorage.getItem('mogumogu_checkout_session') || null;
+    } catch { return null; }
+  });
+
   // URL パラメータ処理（Stripe リダイレクト、Portal 戻り）
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -5133,7 +5169,14 @@ function App() {
         <PremiumScreen onClose={() => setPremiumScreen(null)} />
       )}
       {premiumScreen === 'success' && (
-        <PremiumSuccessScreen onClose={() => { setPremiumScreen(null); setActiveTab('home'); }} />
+        <PremiumSuccessScreen
+          sessionId={checkoutSessionId}
+          onClose={() => {
+            sessionStorage.removeItem('mogumogu_checkout_session');
+            setPremiumScreen(null);
+            setActiveTab('home');
+          }}
+        />
       )}
 
       {/* キャンセルバナー */}
