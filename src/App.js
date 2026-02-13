@@ -186,30 +186,31 @@ function PremiumProvider({ children }) {
     setPremiumVersion((v) => v + 1);
   }, []);
 
+  const isPremiumRef = useRef(isPremium);
+  isPremiumRef.current = isPremium;
+
   const checkPremiumStatus = useCallback(async () => {
     if (!user) { setIsPremium(false); return false; }
-    // subscriptions テーブルから判定
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('status')
-      .eq('user_id', user.id)
-      .single();
-    if (data) {
-      const active = data.status === 'active' || data.status === 'trialing';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return isPremiumRef.current;
+      const res = await fetch('/api/check-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      if (!res.ok) return isPremiumRef.current; // API エラー時は現状維持
+      const data = await res.json();
+      const active = data.isPremium === true;
       setIsPremium(active);
       localStorage.setItem('mogumogu_premium', active.toString());
       return active;
+    } catch (e) {
+      console.error('checkPremiumStatus error:', e);
+      return isPremiumRef.current; // ネットワークエラー時も現状維持
     }
-    // フォールバック: users テーブル
-    const { data: u } = await supabase
-      .from('users')
-      .select('is_premium')
-      .eq('id', user.id)
-      .single();
-    const active = u?.is_premium === true;
-    setIsPremium(active);
-    localStorage.setItem('mogumogu_premium', active.toString());
-    return active;
   }, [user]);
 
   useEffect(() => {
@@ -323,13 +324,24 @@ function useSubscription() {
 
   const refetch = useCallback(async () => {
     if (!user) { setIsLoading(false); return; }
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    setSubscription(data);
-    setIsPremium(data?.status === 'active' || data?.status === 'trialing');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setIsLoading(false); return; }
+      const res = await fetch('/api/check-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.subscription);
+        setIsPremium(data.isPremium === true);
+      }
+    } catch (e) {
+      console.error('useSubscription refetch error:', e);
+    }
     setIsLoading(false);
   }, [user]);
 
