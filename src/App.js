@@ -160,7 +160,7 @@ function AuthProvider({ children }) {
       authScreen, setAuthScreen,
       signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithLINE,
       resetPassword, signOut,
-      updateProfile, completeOnboarding,
+      updateProfile, completeOnboarding, fetchUserProfile,
       isAuthenticated: !!user,
     }}>
       {children}
@@ -182,8 +182,13 @@ function PremiumProvider({ children }) {
   });
   useEffect(() => {
     if (userProfile) {
-      setIsPremium(userProfile.is_premium);
-      localStorage.setItem('mogumogu_premium', userProfile.is_premium.toString());
+      // is_premium かつ premium_expires_at が未来の場合のみプレミアム有効
+      let active = userProfile.is_premium === true;
+      if (active && userProfile.premium_expires_at) {
+        active = new Date(userProfile.premium_expires_at) > new Date();
+      }
+      setIsPremium(active);
+      localStorage.setItem('mogumogu_premium', active.toString());
     }
   }, [userProfile]);
   const [searchCount, setSearchCount] = useState(() => {
@@ -282,6 +287,40 @@ function PremiumProvider({ children }) {
 
 function usePremium() {
   return useContext(PremiumContext);
+}
+
+// ---------- Stripe 決済ヘルパー ----------
+async function startCheckout(plan, userToken) {
+  const res = await fetch('/api/create-checkout-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${userToken}`,
+    },
+    body: JSON.stringify({ plan }),
+  });
+  const data = await res.json();
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    throw new Error(data.error || 'Checkout session creation failed');
+  }
+}
+
+async function openCustomerPortal(userToken) {
+  const res = await fetch('/api/create-portal-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${userToken}`,
+    },
+  });
+  const data = await res.json();
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    throw new Error(data.error || 'Portal session creation failed');
+  }
 }
 
 // ---------- 認証画面 ----------
@@ -739,14 +778,31 @@ const PAYWALL_REASONS = {
 };
 
 function PaywallModal() {
-  const { showPaywall, setShowPaywall, paywallReason, togglePremium } = usePremium();
+  const { showPaywall, setShowPaywall, paywallReason } = usePremium();
+  const { isAuthenticated, setAuthScreen } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState('yearly');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+
   if (!showPaywall) return null;
   const reason = PAYWALL_REASONS[paywallReason] || PAYWALL_REASONS.general;
 
-  const handlePurchase = () => {
-    togglePremium();
-    setShowPaywall(false);
+  const handlePurchase = async () => {
+    if (!isAuthenticated) {
+      setShowPaywall(false);
+      setAuthScreen('login');
+      return;
+    }
+    setCheckoutLoading(true);
+    setCheckoutError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await startCheckout(selectedPlan, session.access_token);
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setCheckoutError('決済ページを開けませんでした。もう一度お試しください。');
+      setCheckoutLoading(false);
+    }
   };
 
   return (
@@ -754,7 +810,7 @@ function PaywallModal() {
       position: 'fixed', inset: 0, zIndex: 3000,
       background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-    }} onClick={(e) => { if (e.target === e.currentTarget) setShowPaywall(false); }}>
+    }} onClick={(e) => { if (e.target === e.currentTarget && !checkoutLoading) setShowPaywall(false); }}>
       <div style={{
         background: '#fff', borderRadius: '28px 28px 0 0', width: '100%', maxWidth: 480,
         maxHeight: '92vh', overflow: 'auto',
@@ -777,7 +833,7 @@ function PaywallModal() {
 
           {/* 特典一覧 */}
           <div style={{
-            background: `linear-gradient(135deg, #FFF8F0, #FFF0E0)`,
+            background: 'linear-gradient(135deg, #FFF8F0, #FFF0E0)',
             borderRadius: 18, padding: 16, marginBottom: 16,
             border: `1px solid ${COLORS.border}`,
           }}>
@@ -843,25 +899,33 @@ function PaywallModal() {
             </button>
           </div>
 
-          {/* 購入ボタン（デモ） */}
-          <button onClick={handlePurchase} style={{
+          {/* エラー表示 */}
+          {checkoutError && (
+            <div style={{
+              background: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 10,
+              padding: '8px 12px', fontSize: 12, color: '#D63031', marginBottom: 12, textAlign: 'center',
+            }}>{checkoutError}</div>
+          )}
+
+          {/* 購入ボタン */}
+          <button onClick={handlePurchase} disabled={checkoutLoading} style={{
             width: '100%', padding: '16px', borderRadius: 16, border: 'none',
-            background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+            background: checkoutLoading ? '#ccc' : `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
             color: '#fff', fontSize: FONT.lg, fontWeight: 900, cursor: 'pointer',
-            fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.35)',
+            fontFamily: 'inherit', boxShadow: checkoutLoading ? 'none' : '0 4px 16px rgba(255,107,53,0.35)',
             marginBottom: SPACE.sm,
           }}>
-            7日間無料で始める
+            {checkoutLoading ? '決済ページを準備中...' : '7日間無料で始める'}
           </button>
           <div style={{ textAlign: 'center', fontSize: FONT.sm, color: COLORS.textLight, lineHeight: 1.5, marginBottom: SPACE.sm }}>
             トライアル終了後 {selectedPlan === 'yearly' ? '¥3,800/年' : '¥480/月'}
             ・いつでも解約OK
           </div>
 
-          <button onClick={() => setShowPaywall(false)} style={{
+          <button onClick={() => { if (!checkoutLoading) setShowPaywall(false); }} style={{
             width: '100%', padding: '12px', borderRadius: 12, border: 'none',
             background: 'none', color: COLORS.textLight, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit',
+            cursor: 'pointer', fontFamily: 'inherit', opacity: checkoutLoading ? 0.4 : 1,
           }}>
             あとで
           </button>
@@ -4174,8 +4238,36 @@ function AdAnalyticsPanel() {
 }
 
 // ---------- 設定タブ ----------
+// ---------- Stripe Customer Portal ボタン ----------
+function PortalButton() {
+  const [loading, setLoading] = useState(false);
+
+  const handlePortal = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await openCustomerPortal(session.access_token);
+    } catch (err) {
+      console.error('Portal error:', err);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handlePortal} disabled={loading} style={{
+      width: '100%', padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
+      fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+      background: 'rgba(255,255,255,0.3)', color: '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      opacity: loading ? 0.6 : 1,
+    }}>
+      {loading ? '読み込み中...' : '🔧 プランを管理・解約'}
+    </button>
+  );
+}
+
 function SettingsTab() {
-  const { isPremium, togglePremium, setShowPaywall, setPaywallReason, searchCount, recipeGenCount, commentCount } = usePremium();
+  const { isPremium, setShowPaywall, setPaywallReason, searchCount, recipeGenCount, commentCount } = usePremium();
   const { userProfile, updateProfile, signOut, user } = useAuth();
   const [babyMonth, setBabyMonth] = useState(() => {
     if (userProfile) return userProfile.baby_month;
@@ -4529,38 +4621,10 @@ function SettingsTab() {
             </button>
           )}
 
-          {/* デモ用トグル */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: isPremium ? 'rgba(255,255,255,0.25)' : '#f8f8f8',
-            borderRadius: 12, padding: '10px 14px',
-          }}>
-            <div>
-              <div style={{
-                fontSize: FONT.sm, fontWeight: 700,
-                color: isPremium ? '#fff' : COLORS.text,
-              }}>🧪 デモ: プレミアム切替</div>
-              <div style={{
-                fontSize: FONT.xs, marginTop: 2,
-                color: isPremium ? 'rgba(255,255,255,0.7)' : COLORS.textLight,
-              }}>テスト用にON/OFFできます</div>
-            </div>
-            <button onClick={togglePremium} style={{
-              width: 50, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer',
-              background: isPremium
-                ? `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryDark})`
-                : '#ccc',
-              position: 'relative', transition: 'background 0.3s',
-            }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: '50%', background: '#fff',
-                position: 'absolute', top: 3,
-                left: isPremium ? 25 : 3,
-                transition: 'left 0.3s',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-              }} />
-            </button>
-          </div>
+          {/* プランを管理（Stripe Customer Portal） */}
+          {isPremium && (
+            <PortalButton />
+          )}
         </div>
 
         {/* 保存ボタン */}
@@ -4624,10 +4688,39 @@ function SettingsTab() {
 const PROTECTED_TABS = ['share', 'recipe', 'settings'];
 
 function App() {
-  const { loading, authScreen, setAuthScreen, isAuthenticated } = useAuth();
+  const { loading, authScreen, setAuthScreen, isAuthenticated, fetchUserProfile, user } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
+  const [checkoutStatus, setCheckoutStatus] = useState(null); // 'success' | 'cancel'
+
+  // Checkout 完了後のリダイレクト処理
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    if (checkout === 'success') {
+      setCheckoutStatus('success');
+      // プロフィール再取得（Webhook で is_premium が更新されるまで少し待つ）
+      if (user) {
+        setTimeout(() => { fetchUserProfile(user.id); }, 2000);
+      }
+      // URL パラメータをクリーンアップ
+      window.history.replaceState({}, '', window.location.pathname);
+      // 5秒後にバナーを消す
+      setTimeout(() => setCheckoutStatus(null), 5000);
+    } else if (checkout === 'cancel') {
+      setCheckoutStatus('cancel');
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setCheckoutStatus(null), 4000);
+    }
+    // URLに ?tab=settings がある場合（Portal からの戻り）
+    if (params.get('tab') === 'settings') {
+      setActiveTab('settings');
+      setDisplayedTab('settings');
+      window.history.replaceState({}, '', window.location.pathname);
+      if (user) fetchUserProfile(user.id);
+    }
+  }, [user, fetchUserProfile]);
 
   const handleTabChange = useCallback((newTab) => {
     if (newTab === activeTab || isTransitioning) return;
@@ -4710,6 +4803,33 @@ function App() {
             );
           })}
         </nav>
+
+        {/* Checkout完了バナー */}
+        {checkoutStatus === 'success' && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
+            background: 'linear-gradient(135deg, #00B894, #00CEC9)',
+            padding: '14px 20px', textAlign: 'center', animation: 'fadeInUp 0.3s ease-out',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#fff' }}>
+              👑 プレミアム登録が完了しました！
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+              7日間の無料トライアルが開始されました
+            </div>
+          </div>
+        )}
+        {checkoutStatus === 'cancel' && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
+            background: '#636E72', padding: '12px 20px', textAlign: 'center',
+            animation: 'fadeInUp 0.3s ease-out',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+              決済がキャンセルされました
+            </div>
+          </div>
+        )}
 
         {/* Paywallモーダル */}
         <PaywallModal />
