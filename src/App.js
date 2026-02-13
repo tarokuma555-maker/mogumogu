@@ -322,10 +322,11 @@ function usePremium() {
   return useContext(PremiumContext);
 }
 
-// ---------- useFavorites フック ----------
+// ---------- お気に入り（Context共有） ----------
 const FAVORITE_LIMIT_FREE = 3;
+const FavoritesContext = createContext();
 
-function useFavorites() {
+function FavoritesProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const { isPremium, setShowPaywall, setPaywallReason } = usePremium();
   const [favorites, setFavorites] = useState([]);
@@ -423,7 +424,6 @@ function useFavorites() {
       }
     } catch (e) {
       console.error('toggleFavorite Supabase error, using localStorage:', e);
-      // Supabase 失敗 → localStorage フォールバック
       setFavorites(prev => {
         let updated;
         if (exists) {
@@ -437,7 +437,20 @@ function useFavorites() {
     }
   }, [user, isAuthenticated, isFavorite, isPremium, favorites.length, setShowPaywall, setPaywallReason, writeLocal]);
 
-  return { favorites, toggleFavorite, isFavorite, loading, fetchFavorites, remaining: isPremium ? null : Math.max(0, FAVORITE_LIMIT_FREE - favorites.length) };
+  const value = useMemo(() => ({
+    favorites, toggleFavorite, isFavorite, loading, fetchFavorites,
+    remaining: isPremium ? null : Math.max(0, FAVORITE_LIMIT_FREE - favorites.length),
+  }), [favorites, toggleFavorite, isFavorite, loading, fetchFavorites, isPremium]);
+
+  return (
+    <FavoritesContext.Provider value={value}>
+      {children}
+    </FavoritesContext.Provider>
+  );
+}
+
+function useFavorites() {
+  return useContext(FavoritesContext);
 }
 
 // ---------- useSubscription フック ----------
@@ -5457,7 +5470,9 @@ function AppRoot() {
   return (
     <AuthProvider>
       <PremiumProvider>
-        <App />
+        <FavoritesProvider>
+          <App />
+        </FavoritesProvider>
       </PremiumProvider>
     </AuthProvider>
   );
