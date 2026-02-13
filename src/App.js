@@ -5085,74 +5085,74 @@ function App() {
   };
 
   return (
-    <PremiumProvider>
-      <div style={styles.app}>
-        {/* メインコンテンツ（ページ遷移アニメーション） */}
-        <div style={{
-          opacity: isTransitioning ? 0 : 1,
-          transform: isTransitioning ? 'translateY(8px)' : 'translateY(0)',
-          transition: 'opacity 0.15s ease, transform 0.15s ease',
-          willChange: 'opacity, transform',
-        }}>
-          {renderTab()}
-        </div>
-
-        {/* タブバー */}
-        <nav style={styles.tabBar}>
-          {TABS.map((tab) => {
-            const isProtected = PROTECTED_TABS.includes(tab.id) && !isAuthenticated;
-            return (
-              <button
-                className="tab-btn"
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                style={styles.tabItem(activeTab === tab.id)}
-              >
-                <span style={styles.tabIcon(activeTab === tab.id)}>
-                  {tab.icon}
-                </span>
-                <span style={{ position: 'relative' }}>
-                  {tab.label}
-                  {isProtected && <span style={{ fontSize: 8, marginLeft: 2, verticalAlign: 'super' }}>🔒</span>}
-                </span>
-                {activeTab === tab.id && <div style={styles.tabIndicator} />}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* プレミアム画面 */}
-        {premiumScreen === 'premium' && (
-          <PremiumScreen onClose={() => setPremiumScreen(null)} />
-        )}
-        {premiumScreen === 'success' && (
-          <PremiumSuccessScreen onClose={() => { refreshPremium(); setPremiumScreen(null); setActiveTab('home'); }} />
-        )}
-
-        {/* キャンセルバナー */}
-        {checkoutStatus === 'cancel' && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
-            background: '#636E72', padding: '12px 20px', textAlign: 'center',
-            animation: 'fadeInUp 0.3s ease-out',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              決済がキャンセルされました
-            </div>
-          </div>
-        )}
-
-        {/* Paywallモーダル */}
-        <PaywallModal />
+    <div style={styles.app}>
+      {/* メインコンテンツ（ページ遷移アニメーション） */}
+      <div style={{
+        opacity: isTransitioning ? 0 : 1,
+        transform: isTransitioning ? 'translateY(8px)' : 'translateY(0)',
+        transition: 'opacity 0.15s ease, transform 0.15s ease',
+        willChange: 'opacity, transform',
+      }}>
+        {renderTab()}
       </div>
-    </PremiumProvider>
+
+      {/* タブバー */}
+      <nav style={styles.tabBar}>
+        {TABS.map((tab) => {
+          const isProtected = PROTECTED_TABS.includes(tab.id) && !isAuthenticated;
+          return (
+            <button
+              className="tab-btn"
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              style={styles.tabItem(activeTab === tab.id)}
+            >
+              <span style={styles.tabIcon(activeTab === tab.id)}>
+                {tab.icon}
+              </span>
+              <span style={{ position: 'relative' }}>
+                {tab.label}
+                {isProtected && <span style={{ fontSize: 8, marginLeft: 2, verticalAlign: 'super' }}>🔒</span>}
+              </span>
+              {activeTab === tab.id && <div style={styles.tabIndicator} />}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* プレミアム画面 */}
+      {premiumScreen === 'premium' && (
+        <PremiumScreen onClose={() => setPremiumScreen(null)} />
+      )}
+      {premiumScreen === 'success' && (
+        <PremiumSuccessScreen onClose={() => { refreshPremium(); setPremiumScreen(null); setActiveTab('home'); }} />
+      )}
+
+      {/* キャンセルバナー */}
+      {checkoutStatus === 'cancel' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
+          background: '#636E72', padding: '12px 20px', textAlign: 'center',
+          animation: 'fadeInUp 0.3s ease-out',
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+            決済がキャンセルされました
+          </div>
+        </div>
+      )}
+
+      {/* Paywallモーダル */}
+      <PaywallModal />
+    </div>
   );
 }
 
 function AppRoot() {
   return (
     <AuthProvider>
-      <App />
+      <PremiumProvider>
+        <App />
+      </PremiumProvider>
     </AuthProvider>
   );
 }
