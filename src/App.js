@@ -190,7 +190,8 @@ function PremiumProvider({ children }) {
   isPremiumRef.current = isPremium;
 
   const checkPremiumStatus = useCallback(async () => {
-    if (!user) { setIsPremium(false); return false; }
+    // user 未ロード時はリセットせず現状維持
+    if (!user) return isPremiumRef.current;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return isPremiumRef.current;
@@ -201,7 +202,7 @@ function PremiumProvider({ children }) {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
-      if (!res.ok) return isPremiumRef.current; // API エラー時は現状維持
+      if (!res.ok) return isPremiumRef.current;
       const data = await res.json();
       const active = data.isPremium === true;
       setIsPremium(active);
@@ -209,7 +210,7 @@ function PremiumProvider({ children }) {
       return active;
     } catch (e) {
       console.error('checkPremiumStatus error:', e);
-      return isPremiumRef.current; // ネットワークエラー時も現状維持
+      return isPremiumRef.current;
     }
   }, [user]);
 
@@ -4442,39 +4443,46 @@ function PremiumScreen({ onClose }) {
 
 // ---------- プレミアム登録成功画面 ----------
 function PremiumSuccessScreen({ onClose }) {
+  const { user } = useAuth();
   const { subscription, refetch } = useSubscription();
   const { checkPremiumStatus } = usePremium();
   const [activating, setActivating] = useState(true);
 
+  // ref で常に最新の関数を参照（クロージャ問題回避）
+  const checkRef = useRef(checkPremiumStatus);
+  checkRef.current = checkPremiumStatus;
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+
   // Webhook 反映をポーリング（2秒間隔、最大30秒）
+  // user が null → non-null に変わったら再開
   useEffect(() => {
+    if (!user) return; // 認証復元待ち
     let cancelled = false;
     let count = 0;
     const poll = async () => {
       while (!cancelled && count < 15) {
         count++;
-        await refetch();
-        const active = await checkPremiumStatus();
+        await refetchRef.current();
+        const active = await checkRef.current();
         if (active) {
           setActivating(false);
           return;
         }
         await new Promise((r) => setTimeout(r, 2000));
       }
-      // タイムアウトしても終了
       setActivating(false);
     };
     poll();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const trialEndDate = subscription?.trial_end
     ? new Date(subscription.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
     : '7日後';
 
   const handleClose = async () => {
-    await checkPremiumStatus();
+    await checkRef.current();
     onClose();
   };
 
