@@ -46,31 +46,39 @@ module.exports = async (req, res) => {
 
     const isActive = ['active', 'trialing'].includes(sub.status);
 
-    // subscriptions テーブルを即時更新（Webhook のバックアップ）
-    await supabase.from('subscriptions').upsert({
-      user_id: userId,
-      stripe_customer_id: sub.customer,
-      stripe_subscription_id: sub.id,
-      plan: plan,
-      status: sub.status,
-      trial_start: sub.trial_start
-        ? new Date(sub.trial_start * 1000).toISOString()
-        : null,
-      trial_end: sub.trial_end
-        ? new Date(sub.trial_end * 1000).toISOString()
-        : null,
-      current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: sub.cancel_at_period_end,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
+    // DB 更新（テーブルが無くても失敗しない）
+    try {
+      await supabase.from('subscriptions').upsert({
+        user_id: userId,
+        stripe_customer_id: sub.customer,
+        stripe_subscription_id: sub.id,
+        plan: plan,
+        status: sub.status,
+        trial_start: sub.trial_start
+          ? new Date(sub.trial_start * 1000).toISOString()
+          : null,
+        trial_end: sub.trial_end
+          ? new Date(sub.trial_end * 1000).toISOString()
+          : null,
+        current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+        cancel_at_period_end: sub.cancel_at_period_end,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+    } catch (e) {
+      console.error('verify-checkout: subscriptions upsert failed:', e.message);
+    }
 
-    // users テーブルも同期
-    await supabase.from('users').update({
-      is_premium: isActive,
-      stripe_customer_id: sub.customer,
-    }).eq('id', userId);
+    try {
+      await supabase.from('users').update({
+        is_premium: isActive,
+        stripe_customer_id: sub.customer,
+      }).eq('id', userId);
+    } catch (e) {
+      console.error('verify-checkout: users update failed:', e.message);
+    }
 
+    // Stripe データに基づいて常に結果を返す（DB 成否に関係なく）
     return res.status(200).json({
       isPremium: isActive,
       subscription: {

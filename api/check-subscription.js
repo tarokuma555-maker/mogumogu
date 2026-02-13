@@ -24,12 +24,18 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // subscriptions テーブルを確認（service role key で RLS バイパス）
-    const { data: sub } = await supabase
-      .from('subscriptions')
-      .select('status, plan, trial_end, current_period_end, cancel_at_period_end')
-      .eq('user_id', user.id)
-      .single();
+    // subscriptions テーブルを確認（テーブル不在でも失敗しない）
+    let sub = null;
+    try {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('status, plan, trial_end, current_period_end, cancel_at_period_end')
+        .eq('user_id', user.id)
+        .single();
+      sub = data;
+    } catch (e) {
+      console.error('check-subscription: subscriptions query failed:', e.message);
+    }
 
     if (sub) {
       const isPremium = sub.status === 'active' || sub.status === 'trialing';
@@ -37,11 +43,17 @@ module.exports = async (req, res) => {
     }
 
     // フォールバック: users テーブル
-    const { data: profile } = await supabase
-      .from('users')
-      .select('is_premium')
-      .eq('id', user.id)
-      .single();
+    let profile = null;
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('is_premium')
+        .eq('id', user.id)
+        .single();
+      profile = data;
+    } catch (e) {
+      console.error('check-subscription: users query failed:', e.message);
+    }
 
     return res.status(200).json({
       isPremium: profile?.is_premium === true,
@@ -49,6 +61,6 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error('check-subscription error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(200).json({ isPremium: false, subscription: null });
   }
 };

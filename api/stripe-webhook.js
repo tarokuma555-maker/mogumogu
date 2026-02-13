@@ -51,30 +51,38 @@ module.exports = async (req, res) => {
         if (priceId === process.env.STRIPE_PRICE_MONTHLY) plan = 'premium_monthly';
         if (priceId === process.env.STRIPE_PRICE_YEARLY) plan = 'premium_yearly';
 
-        await supabase.from('subscriptions').upsert({
-          user_id: userId,
-          stripe_customer_id: subscription.customer,
-          stripe_subscription_id: subscription.id,
-          plan: plan,
-          status: subscription.status,
-          trial_start: subscription.trial_start
-            ? new Date(subscription.trial_start * 1000).toISOString()
-            : null,
-          trial_end: subscription.trial_end
-            ? new Date(subscription.trial_end * 1000).toISOString()
-            : null,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        try {
+          await supabase.from('subscriptions').upsert({
+            user_id: userId,
+            stripe_customer_id: subscription.customer,
+            stripe_subscription_id: subscription.id,
+            plan: plan,
+            status: subscription.status,
+            trial_start: subscription.trial_start
+              ? new Date(subscription.trial_start * 1000).toISOString()
+              : null,
+            trial_end: subscription.trial_end
+              ? new Date(subscription.trial_end * 1000).toISOString()
+              : null,
+            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+        } catch (e) {
+          console.error('webhook: subscriptions upsert failed:', e.message);
+        }
 
         // users テーブルも同期
         const isActive = ['active', 'trialing'].includes(subscription.status);
-        await supabase.from('users').update({
-          is_premium: isActive,
-          stripe_customer_id: subscription.customer,
-        }).eq('id', userId);
+        try {
+          await supabase.from('users').update({
+            is_premium: isActive,
+            stripe_customer_id: subscription.customer,
+          }).eq('id', userId);
+        } catch (e) {
+          console.error('webhook: users update failed:', e.message);
+        }
 
         break;
       }
@@ -84,17 +92,25 @@ module.exports = async (req, res) => {
         const userId = subscription.metadata.supabase_user_id;
         if (!userId) break;
 
-        await supabase.from('subscriptions').upsert({
-          user_id: userId,
-          plan: 'free',
-          status: 'expired',
-          cancel_at_period_end: false,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        try {
+          await supabase.from('subscriptions').upsert({
+            user_id: userId,
+            plan: 'free',
+            status: 'expired',
+            cancel_at_period_end: false,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+        } catch (e) {
+          console.error('webhook: subscriptions upsert (delete) failed:', e.message);
+        }
 
-        await supabase.from('users').update({
-          is_premium: false,
-        }).eq('id', userId);
+        try {
+          await supabase.from('users').update({
+            is_premium: false,
+          }).eq('id', userId);
+        } catch (e) {
+          console.error('webhook: users update (delete) failed:', e.message);
+        }
 
         break;
       }
@@ -104,16 +120,20 @@ module.exports = async (req, res) => {
         const invoice = event.data.object;
         const subId = invoice.subscription;
         if (subId) {
-          const { data: subRow } = await supabase
-            .from('subscriptions')
-            .select('user_id')
-            .eq('stripe_subscription_id', subId)
-            .single();
-          if (subRow) {
-            await supabase.from('subscriptions').update({
-              status: 'past_due',
-              updated_at: new Date().toISOString(),
-            }).eq('user_id', subRow.user_id);
+          try {
+            const { data: subRow } = await supabase
+              .from('subscriptions')
+              .select('user_id')
+              .eq('stripe_subscription_id', subId)
+              .single();
+            if (subRow) {
+              await supabase.from('subscriptions').update({
+                status: 'past_due',
+                updated_at: new Date().toISOString(),
+              }).eq('user_id', subRow.user_id);
+            }
+          } catch (e) {
+            console.error('webhook: payment_failed handler error:', e.message);
           }
         }
         break;
@@ -126,6 +146,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ received: true });
   } catch (err) {
     console.error('Webhook handler error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(200).json({ received: true });
   }
 };

@@ -29,14 +29,35 @@ module.exports = async (req, res) => {
     }
 
     // 既存の Stripe Customer を検索、なければ作成
-    const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('stripe_customer_id')
-      .eq('user_id', userId)
-      .single();
+    let customerId = null;
 
-    let customerId = existingSub?.stripe_customer_id;
+    // subscriptions テーブルから検索（テーブル不在でも失敗しない）
+    try {
+      const { data: existingSub } = await supabase
+        .from('subscriptions')
+        .select('stripe_customer_id')
+        .eq('user_id', userId)
+        .single();
+      customerId = existingSub?.stripe_customer_id || null;
+    } catch (e) {
+      console.error('create-checkout: subscriptions query failed:', e.message);
+    }
 
+    // フォールバック: users テーブルから検索
+    if (!customerId) {
+      try {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('stripe_customer_id')
+          .eq('id', userId)
+          .single();
+        customerId = userRow?.stripe_customer_id || null;
+      } catch (e) {
+        console.error('create-checkout: users query failed:', e.message);
+      }
+    }
+
+    // どちらにもなければ新規作成
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: email,
