@@ -14,20 +14,32 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { data: profile } = await supabase
-      .from('users')
+    // subscriptions テーブルから stripe_customer_id を取得
+    const { data: sub } = await supabase
+      .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
-    if (!profile?.stripe_customer_id) {
+    // フォールバック: users テーブルも確認
+    let customerId = sub?.stripe_customer_id;
+    if (!customerId) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+      customerId = profile?.stripe_customer_id;
+    }
+
+    if (!customerId) {
       return res.status(400).json({ error: 'No Stripe customer found' });
     }
 
-    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'https://mogumogu-omega.vercel.app';
+    const origin = req.headers.origin || 'https://mogumogu-omega.vercel.app';
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
+      customer: customerId,
       return_url: `${origin}/?tab=settings`,
     });
 

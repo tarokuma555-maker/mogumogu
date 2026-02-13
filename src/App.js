@@ -176,21 +176,31 @@ function useAuth() {
 const PremiumContext = createContext();
 
 function PremiumProvider({ children }) {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const [isPremium, setIsPremium] = useState(() => {
     try { return localStorage.getItem('mogumogu_premium') === 'true'; } catch { return false; }
   });
   useEffect(() => {
-    if (userProfile) {
-      // is_premium かつ premium_expires_at が未来の場合のみプレミアム有効
-      let active = userProfile.is_premium === true;
-      if (active && userProfile.premium_expires_at) {
-        active = new Date(userProfile.premium_expires_at) > new Date();
-      }
-      setIsPremium(active);
-      localStorage.setItem('mogumogu_premium', active.toString());
-    }
-  }, [userProfile]);
+    if (!user) { setIsPremium(false); return; }
+    // subscriptions テーブルから判定
+    supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => {
+        const active = data?.status === 'active' || data?.status === 'trialing';
+        setIsPremium(active);
+        localStorage.setItem('mogumogu_premium', active.toString());
+      })
+      .catch(() => {
+        // subscriptions テーブルがなければ users テーブルにフォールバック
+        if (userProfile) {
+          setIsPremium(userProfile.is_premium === true);
+          localStorage.setItem('mogumogu_premium', (userProfile.is_premium === true).toString());
+        }
+      });
+  }, [user, userProfile]);
   const [searchCount, setSearchCount] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('mogumogu_usage') || '{}');
@@ -289,15 +299,36 @@ function usePremium() {
   return useContext(PremiumContext);
 }
 
+// ---------- useSubscription フック ----------
+function useSubscription() {
+  const { user } = useAuth();
+  const [subscription, setSubscription] = useState(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    if (!user) { setIsLoading(false); return; }
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    setSubscription(data);
+    setIsPremium(data?.status === 'active' || data?.status === 'trialing');
+    setIsLoading(false);
+  }, [user]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { subscription, isPremium, isLoading, refetch };
+}
+
 // ---------- Stripe 決済ヘルパー ----------
-async function startCheckout(plan, userToken) {
-  const res = await fetch('/api/create-checkout-session', {
+async function startCheckout(userId, email, plan) {
+  const res = await fetch('/api/create-checkout', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${userToken}`,
-    },
-    body: JSON.stringify({ plan }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, email, plan }),
   });
   const data = await res.json();
   if (data.url) {
@@ -796,8 +827,8 @@ function PaywallModal() {
     setCheckoutLoading(true);
     setCheckoutError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      await startCheckout(selectedPlan, session.access_token);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await startCheckout(currentUser.id, currentUser.email, selectedPlan);
     } catch (err) {
       console.error('Checkout error:', err);
       setCheckoutError('決済ページを開けませんでした。もう一度お試しください。');
@@ -4238,31 +4269,255 @@ function AdAnalyticsPanel() {
 }
 
 // ---------- 設定タブ ----------
-// ---------- Stripe Customer Portal ボタン ----------
-function PortalButton() {
+// ---------- プレミアム登録画面 ----------
+function PremiumScreen({ onClose }) {
+  const { user } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState('yearly');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handlePortal = async () => {
+  const handleSubscribe = async (plan) => {
     setLoading(true);
+    setError('');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      await openCustomerPortal(session.access_token);
+      await startCheckout(user.id, user.email, plan);
     } catch (err) {
-      console.error('Portal error:', err);
+      console.error('Checkout error:', err);
+      setError('決済ページを開けませんでした。もう一度お試しください。');
       setLoading(false);
     }
   };
 
   return (
-    <button onClick={handlePortal} disabled={loading} style={{
-      width: '100%', padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
-      fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-      background: 'rgba(255,255,255,0.3)', color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-      opacity: loading ? 0.6 : 1,
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 3500, background: '#fff',
+      overflow: 'auto', WebkitOverflowScrolling: 'touch',
     }}>
-      {loading ? '読み込み中...' : '🔧 プランを管理・解約'}
-    </button>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 20px 40px' }}>
+        {/* ナビバー */}
+        <div style={{
+          display: 'flex', alignItems: 'center', padding: '16px 0',
+          position: 'sticky', top: 0, background: '#fff', zIndex: 1,
+        }}>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', fontSize: 14, color: COLORS.textLight,
+            cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+          }}>← 戻る</button>
+        </div>
+
+        {/* ヘッダー */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>🍼</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.text }}>
+            MoguMogu プレミアム
+          </div>
+          <div style={{
+            fontSize: 15, color: COLORS.primaryDark, fontWeight: 700, marginTop: 6,
+          }}>7日間無料でお試し！</div>
+        </div>
+
+        {/* 比較テーブル */}
+        <div style={{
+          background: '#fff', borderRadius: 18, overflow: 'hidden',
+          border: `1px solid ${COLORS.border}`, marginBottom: 24,
+        }}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 70px 90px',
+            background: COLORS.tagBg, padding: '10px 14px',
+            fontWeight: 700, fontSize: 12, color: COLORS.textLight,
+          }}>
+            <span>機能</span>
+            <span style={{ textAlign: 'center' }}>無料</span>
+            <span style={{ textAlign: 'center', color: COLORS.primaryDark }}>プレミアム</span>
+          </div>
+          {[
+            { label: '離乳食動画', free: '✅', premium: '✅' },
+            { label: '基本レシピ', free: '✅', premium: '✅' },
+            { label: 'AI離乳食相談', free: '1日3回', premium: '無制限' },
+            { label: 'AIレシピ提案', free: '❌', premium: '✅' },
+            { label: 'お気に入り保存', free: '10件', premium: '無制限' },
+            { label: '広告非表示', free: '❌', premium: '✅' },
+            { label: 'SNS投稿', free: '閲覧のみ', premium: '✅' },
+          ].map((row, i) => (
+            <div key={row.label} style={{
+              display: 'grid', gridTemplateColumns: '1fr 70px 90px',
+              padding: '10px 14px', alignItems: 'center',
+              borderTop: `1px solid ${COLORS.border}`,
+              background: i % 2 === 0 ? '#fff' : '#FAFAFA',
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{row.label}</span>
+              <span style={{ textAlign: 'center', fontSize: 12, color: COLORS.textLight }}>{row.free}</span>
+              <span style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: COLORS.primaryDark }}>{row.premium}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* プランカード */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          {/* 月額 */}
+          <button onClick={() => setSelectedPlan('monthly')} style={{
+            flex: 1, borderRadius: 16, padding: '18px 12px', cursor: 'pointer',
+            fontFamily: 'inherit', textAlign: 'center',
+            border: selectedPlan === 'monthly' ? `3px solid ${COLORS.primaryDark}` : `2px solid ${COLORS.border}`,
+            background: selectedPlan === 'monthly' ? '#FFF8F0' : '#fff',
+          }}>
+            <div style={{ fontSize: 12, color: COLORS.textLight, fontWeight: 600, marginBottom: 6 }}>月額プラン</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.text }}>¥480</div>
+            <div style={{ fontSize: 11, color: COLORS.textLight }}>/月</div>
+          </button>
+          {/* 年額 */}
+          <button onClick={() => setSelectedPlan('yearly')} style={{
+            flex: 1, borderRadius: 16, padding: '18px 12px', cursor: 'pointer',
+            fontFamily: 'inherit', textAlign: 'center', position: 'relative',
+            border: selectedPlan === 'yearly' ? `3px solid ${COLORS.primaryDark}` : `2px solid ${COLORS.border}`,
+            background: selectedPlan === 'yearly' ? '#FFF8F0' : '#fff',
+          }}>
+            <div style={{
+              position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+              background: COLORS.danger, color: '#fff', fontSize: 10, fontWeight: 900,
+              padding: '2px 10px', borderRadius: 10, whiteSpace: 'nowrap',
+            }}>34% OFF おすすめ</div>
+            <div style={{ fontSize: 12, color: COLORS.textLight, fontWeight: 600, marginBottom: 6, marginTop: 4 }}>年額プラン</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.primaryDark }}>¥3,800</div>
+            <div style={{ fontSize: 11, color: COLORS.textLight }}>月あたり ¥317</div>
+          </button>
+        </div>
+
+        {/* エラー */}
+        {error && (
+          <div style={{
+            background: '#FFF0F0', border: '1px solid #FFD0D0', borderRadius: 10,
+            padding: '8px 12px', fontSize: 12, color: '#D63031', marginBottom: 12, textAlign: 'center',
+          }}>{error}</div>
+        )}
+
+        {/* 購入ボタン */}
+        <button onClick={() => handleSubscribe(selectedPlan)} disabled={loading} style={{
+          width: '100%', padding: 16, borderRadius: 24, border: 'none',
+          background: loading ? '#ccc' : `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+          color: '#fff', fontSize: 17, fontWeight: 900, cursor: 'pointer',
+          fontFamily: 'inherit', boxShadow: loading ? 'none' : '0 4px 20px rgba(255,107,53,0.35)',
+          marginBottom: 16,
+        }}>
+          {loading ? '決済ページを準備中...' : '7日間無料で始める'}
+        </button>
+
+        {/* 注意書き */}
+        <div style={{ textAlign: 'center', fontSize: 12, color: COLORS.textLight, lineHeight: 1.8 }}>
+          <div>無料トライアル期間中に解約すれば料金は発生しません</div>
+          <div>トライアル終了後、{selectedPlan === 'yearly' ? '¥3,800/年' : '¥480/月'}で自動更新されます</div>
+          <div style={{ marginTop: 4 }}>いつでも解約OK</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- プレミアム登録成功画面 ----------
+function PremiumSuccessScreen({ onClose }) {
+  const { subscription } = useSubscription();
+
+  const trialEndDate = subscription?.trial_end
+    ? new Date(subscription.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
+    : '7日後';
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 3500, background: '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ textAlign: 'center', padding: '0 32px', maxWidth: 400 }}>
+        <div style={{ fontSize: 72, marginBottom: 20 }}>🎉</div>
+        <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.text, marginBottom: 12 }}>
+          プレミアム登録ありがとうございます！
+        </div>
+        <div style={{ fontSize: 15, color: COLORS.textLight, lineHeight: 1.8, marginBottom: 24 }}>
+          7日間の無料トライアルが始まりました
+        </div>
+        <div style={{
+          background: COLORS.tagBg, borderRadius: 16, padding: '16px 20px',
+          marginBottom: 28, border: `1px solid ${COLORS.border}`,
+        }}>
+          <div style={{ fontSize: 13, color: COLORS.textLight, marginBottom: 4 }}>トライアル終了日</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.primaryDark }}>{trialEndDate}</div>
+        </div>
+        <button className="tap-scale" onClick={onClose} style={{
+          width: '100%', padding: 16, borderRadius: 24, border: 'none',
+          background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+          color: '#fff', fontSize: 16, fontWeight: 900, cursor: 'pointer',
+          fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(255,107,53,0.3)',
+        }}>ホームに戻る</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- サブスクリプション情報 & Customer Portal ----------
+function SubscriptionInfo() {
+  const { subscription } = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await openCustomerPortal(session.access_token);
+    } catch (err) {
+      console.error('Portal error:', err);
+      setPortalLoading(false);
+    }
+  };
+
+  const planLabel = subscription?.plan === 'premium_yearly' ? '年額プラン (¥3,800/年)'
+    : subscription?.plan === 'premium_monthly' ? '月額プラン (¥480/月)'
+    : 'プレミアム';
+  const statusLabel = subscription?.status === 'trialing' ? '無料トライアル中'
+    : subscription?.status === 'active' ? '有効'
+    : subscription?.status || '';
+  const periodEnd = subscription?.current_period_end
+    ? new Date(subscription.current_period_end).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+
+  return (
+    <div>
+      {/* サブスク情報 */}
+      <div style={{
+        background: 'rgba(255,255,255,0.25)', borderRadius: 12, padding: '12px 14px',
+        marginBottom: 10,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>プラン</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{planLabel}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>ステータス</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{statusLabel}</span>
+        </div>
+        {periodEnd && (
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>次回更新日</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{periodEnd}</span>
+          </div>
+        )}
+        {subscription?.cancel_at_period_end && (
+          <div style={{
+            marginTop: 8, background: 'rgba(255,0,0,0.15)', borderRadius: 8,
+            padding: '6px 10px', fontSize: 11, color: '#fff', textAlign: 'center',
+          }}>解約予定（期間終了後に無料プランへ移行）</div>
+        )}
+      </div>
+
+      {/* Portal ボタン */}
+      <button onClick={handlePortal} disabled={portalLoading} style={{
+        width: '100%', padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+        background: 'rgba(255,255,255,0.3)', color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        opacity: portalLoading ? 0.6 : 1,
+      }}>
+        {portalLoading ? '読み込み中...' : '🔧 プランを管理・解約'}
+      </button>
+    </div>
   );
 }
 
@@ -4621,9 +4876,9 @@ function SettingsTab() {
             </button>
           )}
 
-          {/* プランを管理（Stripe Customer Portal） */}
+          {/* プレミアム会員: サブスク詳細 & Portal */}
           {isPremium && (
-            <PortalButton />
+            <SubscriptionInfo />
           )}
         </div>
 
@@ -4692,28 +4947,36 @@ function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
+  const [premiumScreen, setPremiumScreen] = useState(null); // 'premium' | 'success' | null
   const [checkoutStatus, setCheckoutStatus] = useState(null); // 'success' | 'cancel'
 
-  // Checkout 完了後のリダイレクト処理
+  // URL パラメータ処理（Stripe リダイレクト、Portal 戻り）
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const checkout = params.get('checkout');
-    if (checkout === 'success') {
-      setCheckoutStatus('success');
-      // プロフィール再取得（Webhook で is_premium が更新されるまで少し待つ）
+    const premium = params.get('premium');
+    if (premium === 'success') {
+      setPremiumScreen('success');
       if (user) {
         setTimeout(() => { fetchUserProfile(user.id); }, 2000);
       }
-      // URL パラメータをクリーンアップ
       window.history.replaceState({}, '', window.location.pathname);
-      // 5秒後にバナーを消す
-      setTimeout(() => setCheckoutStatus(null), 5000);
+    } else if (premium === 'cancel') {
+      setCheckoutStatus('cancel');
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setCheckoutStatus(null), 4000);
+    }
+    // ?checkout= の旧形式もサポート
+    const checkout = params.get('checkout');
+    if (checkout === 'success') {
+      setPremiumScreen('success');
+      if (user) { setTimeout(() => { fetchUserProfile(user.id); }, 2000); }
+      window.history.replaceState({}, '', window.location.pathname);
     } else if (checkout === 'cancel') {
       setCheckoutStatus('cancel');
       window.history.replaceState({}, '', window.location.pathname);
       setTimeout(() => setCheckoutStatus(null), 4000);
     }
-    // URLに ?tab=settings がある場合（Portal からの戻り）
+    // Portal からの戻り
     if (params.get('tab') === 'settings') {
       setActiveTab('settings');
       setDisplayedTab('settings');
@@ -4804,21 +5067,15 @@ function App() {
           })}
         </nav>
 
-        {/* Checkout完了バナー */}
-        {checkoutStatus === 'success' && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
-            background: 'linear-gradient(135deg, #00B894, #00CEC9)',
-            padding: '14px 20px', textAlign: 'center', animation: 'fadeInUp 0.3s ease-out',
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#fff' }}>
-              👑 プレミアム登録が完了しました！
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-              7日間の無料トライアルが開始されました
-            </div>
-          </div>
+        {/* プレミアム画面 */}
+        {premiumScreen === 'premium' && (
+          <PremiumScreen onClose={() => setPremiumScreen(null)} />
         )}
+        {premiumScreen === 'success' && (
+          <PremiumSuccessScreen onClose={() => { setPremiumScreen(null); setActiveTab('home'); }} />
+        )}
+
+        {/* キャンセルバナー */}
         {checkoutStatus === 'cancel' && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 4000,
