@@ -2708,120 +2708,17 @@ function SearchTab() {
   );
 }
 
-// ---------- もぐもぐシェア SNSデータ ----------
-const STORY_USERS = [
-  { id: 'me', name: 'あなた', avatar: '📷', isMe: true, hasStory: false, color: COLORS.textLight },
-  { id: 'u1', name: 'ゆいママ', avatar: '👩', hasStory: true, color: '#E91E63' },
-  { id: 'u2', name: 'たけパパ', avatar: '👨', hasStory: true, color: '#2196F3' },
-  { id: 'u3', name: 'みき栄養士', avatar: '👩‍⚕️', hasStory: true, color: '#4CAF50' },
-  { id: 'u4', name: 'あいばぁば', avatar: '👵', hasStory: true, color: '#9C27B0' },
-  { id: 'u5', name: 'りょう', avatar: '👨‍🍳', hasStory: true, color: '#FF9800' },
-  { id: 'u6', name: 'さくら', avatar: '👩‍🍳', hasStory: true, color: '#F44336' },
-  { id: 'u7', name: 'こうき', avatar: '🧑', hasStory: false, color: '#607D8B' },
-];
-
-const SNS_POSTS = [
-  {
-    id: 'p1', userId: 'u1', userName: 'ゆいママ', avatar: '👩',
-    stage: 'ゴックン期', timeAgo: '2時間前',
-    photoEmoji: '🥕', photoBg: 'linear-gradient(135deg, #FF6B35, #FDCB6E)',
-    photoLabel: 'にんじんペースト',
-    caption: '初めてのにんじん、完食しました！🎉\nブレンダーでなめらかにしたら\nパクパク食べてくれた♡',
-    hashtags: ['#離乳食デビュー', '#ゴックン期', '#にんじん', '#生後6ヶ月'],
-    likes: 128, comments: 23, hasRecipe: true,
-    recipe: {
-      ingredients: ['にんじん 1/3本', 'だし汁 大さじ2'],
-      steps: ['薄くスライスして15分茹でる', 'ブレンダーでペーストに', 'だし汁でのばして完成'],
-    },
-  },
-  {
-    id: 'p2', userId: 'u2', userName: 'たけパパ', avatar: '👨',
-    stage: 'モグモグ期', timeAgo: '5時間前',
-    photoEmoji: '🐟', photoBg: 'linear-gradient(135deg, #0984E3, #74B9FF)',
-    photoLabel: 'しらすのおかゆ',
-    caption: '今日のパパごはん担当DAY！\nしらすおかゆを作ったよ🍚\n塩抜きもバッチリ👍',
-    hashtags: ['#パパごはん', '#しらす', '#モグモグ期', '#離乳食記録'],
-    likes: 89, comments: 15, hasRecipe: true,
-    recipe: {
-      ingredients: ['7倍がゆ 50g', 'しらす 小さじ1', 'だし汁 小さじ1'],
-      steps: ['しらすを熱湯で2分塩抜き', '細かく刻む', 'おかゆに混ぜて完成'],
-    },
-  },
-  {
-    id: 'p3', userId: 'u3', userName: 'みき栄養士', avatar: '👩‍⚕️',
-    stage: 'カミカミ期', timeAgo: '8時間前',
-    photoEmoji: '🍌', photoBg: 'linear-gradient(135deg, #A29BFE, #6C5CE7)',
-    photoLabel: '米粉パンケーキ',
-    caption: '【管理栄養士おすすめ】\n卵・乳なしの米粉パンケーキ🥞\nアレルギーっ子にも安心♪\n手づかみ食べの練習にも◎',
-    hashtags: ['#管理栄養士レシピ', '#アレルギー対応', '#米粉パンケーキ', '#手づかみ食べ'],
-    likes: 342, comments: 67, hasRecipe: true,
-    recipe: {
-      ingredients: ['バナナ 1/2本', '米粉 大さじ3', '豆乳 大さじ2'],
-      steps: ['バナナを潰す', '米粉と豆乳を混ぜる', '弱火で両面焼く', '小さめサイズで冷ます'],
-    },
-  },
-  {
-    id: 'p4', userId: 'u4', userName: 'あいばぁば', avatar: '👵',
-    stage: 'パクパク期', timeAgo: '12時間前',
-    photoEmoji: '🍅', photoBg: 'linear-gradient(135deg, #D63031, #FF7675)',
-    photoLabel: 'トマトリゾット',
-    caption: '孫のお昼ごはん🍅\nトマトリゾット大好評でした！\n大人の分から取り分けできるのが楽ちん♪',
-    hashtags: ['#ばぁばごはん', '#取り分け離乳食', '#トマトリゾット', '#パクパク期'],
-    likes: 201, comments: 34, hasRecipe: false,
-  },
-  {
-    id: 'p5', userId: 'u5', userName: 'りょう', avatar: '👨‍🍳',
-    stage: 'カミカミ期', timeAgo: '1日前',
-    photoEmoji: '🍔', photoBg: 'linear-gradient(135deg, #E17055, #FAB1A0)',
-    photoLabel: '豆腐ハンバーグ',
-    caption: '週末まとめて冷凍ストック作り！\n豆腐ハンバーグ×20個完成🎊\nこれで平日楽できる〜',
-    hashtags: ['#冷凍ストック', '#作り置き', '#豆腐ハンバーグ', '#カミカミ期'],
-    likes: 456, comments: 78, hasRecipe: true,
-    recipe: {
-      ingredients: ['木綿豆腐 50g', '鶏ひき肉 20g', 'にんじんすりおろし 10g', '片栗粉 小さじ1'],
-      steps: ['豆腐を水切り', '全材料を混ぜる', '小判型に成形', '両面こんがり焼く'],
-    },
-  },
-  {
-    id: 'p6', userId: 'u6', userName: 'さくら', avatar: '👩‍🍳',
-    stage: 'ゴックン期', timeAgo: '1日前',
-    photoEmoji: '🎃', photoBg: 'linear-gradient(135deg, #F39C12, #F1C40F)',
-    photoLabel: 'かぼちゃマッシュ',
-    caption: '離乳食2週目🎃\nかぼちゃの甘さにびっくり！\nすごいお顔して食べてました😂',
-    hashtags: ['#離乳食2週目', '#かぼちゃ', '#ゴックン期', '#赤ちゃんの反応'],
-    likes: 167, comments: 28, hasRecipe: false,
-  },
-  {
-    id: 'p7', userId: 'u3', userName: 'みき栄養士', avatar: '👩‍⚕️',
-    stage: 'モグモグ期', timeAgo: '2日前',
-    photoEmoji: '🥦', photoBg: 'linear-gradient(135deg, #00B894, #55EFC4)',
-    photoLabel: 'ブロッコリーのおかか和え',
-    caption: '【鉄分チャージ】\nブロッコリー＋かつお節の組み合わせ💪\n鉄分もビタミンCもバッチリ！\n貧血予防に取り入れてみてね',
-    hashtags: ['#鉄分補給', '#ブロッコリー', '#モグモグ期', '#栄養バランス'],
-    likes: 289, comments: 45, hasRecipe: true,
-    recipe: {
-      ingredients: ['ブロッコリー穂先 2房', 'かつお節 ひとつまみ', 'だし汁 小さじ1'],
-      steps: ['穂先をやわらかく茹でる', 'みじん切りにする', 'かつお節とだし汁で和える'],
-    },
-  },
-  {
-    id: 'p8', userId: 'u1', userName: 'ゆいママ', avatar: '👩',
-    stage: 'ゴックン期', timeAgo: '3日前',
-    photoEmoji: '🍚', photoBg: 'linear-gradient(135deg, #DFE6E9, #B2BEC3)',
-    photoLabel: '10倍がゆ',
-    caption: 'ついに離乳食スタート！🍚✨\n10倍がゆをひとさじから。\nドキドキの初日でした💓',
-    hashtags: ['#離乳食スタート', '#10倍がゆ', '#生後5ヶ月', '#はじめての一口'],
-    likes: 523, comments: 92, hasRecipe: false,
-  },
-];
-
-const SNS_FILTERS = [
+// ---------- もぐもぐシェア ----------
+const SHARE_FILTERS = [
   { id: 'all', label: 'すべて' },
-  { id: 'recipe', label: 'レシピ付き' },
-  { id: 'ゴックン期', label: '初期' },
-  { id: 'モグモグ期', label: '中期' },
-  { id: 'カミカミ期', label: '後期' },
-  { id: 'パクパク期', label: '完了期' },
+  { id: 'recipe', label: 'レシピ' },
+  { id: 'tip', label: 'コツ' },
+  { id: 'photo', label: '写真' },
+  { id: 'question', label: '質問' },
+  { id: '初期', label: '初期' },
+  { id: '中期', label: '中期' },
+  { id: '後期', label: '後期' },
+  { id: '完了期', label: '完了期' },
 ];
 
 // ---------- 画像リサイズ & アップロード ----------
@@ -2859,331 +2756,108 @@ async function uploadPostImages(files, userId, onProgress) {
   return urls;
 }
 
-function getTimeAgo(dateStr) {
-  const now = new Date();
-  const d = new Date(dateStr);
-  const diffMin = Math.floor((now - d) / 60000);
-  if (diffMin < 1) return 'たった今';
-  if (diffMin < 60) return `${diffMin}分前`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}時間前`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}日前`;
-  return `${Math.floor(diffDay / 30)}ヶ月前`;
-}
 
-// ---------- 画像ライトボックス ----------
-function ImageLightbox({ images, initialIndex = 0, onClose }) {
-  const [index, setIndex] = useState(initialIndex);
+// ---------- シェア投稿カード ----------
+const POST_TYPE_STYLES = {
+  recipe: { label: 'レシピ', emoji: '🍳', bg: '#E8F5E9', color: '#2E7D32' },
+  tip: { label: 'コツ', emoji: '💡', bg: '#E3F2FD', color: '#1565C0' },
+  photo: { label: '写真', emoji: '📷', bg: '#FFF3E0', color: '#E65100' },
+  question: { label: '質問', emoji: '❓', bg: '#FCE4EC', color: '#C2185B' },
+};
 
-  return (
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, zIndex: 3000,
-      background: 'rgba(0,0,0,0.95)', display: 'flex',
-      flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <button onClick={onClose} style={{
-        position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.2)',
-        border: 'none', borderRadius: '50%', width: 44, height: 44,
-        color: '#fff', fontSize: 20, cursor: 'pointer', zIndex: 3001,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>✕</button>
-      <img
-        src={images[index]}
-        alt=""
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '95vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }}
-      />
-      {images.length > 1 && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {images.map((_, i) => (
-            <button key={i} onClick={(e) => { e.stopPropagation(); setIndex(i); }} style={{
-              width: 10, height: 10, borderRadius: '50%', border: 'none',
-              background: i === index ? '#fff' : 'rgba(255,255,255,0.4)', cursor: 'pointer',
-            }} />
-          ))}
-        </div>
-      )}
-      {images.length > 1 && index > 0 && (
-        <button onClick={(e) => { e.stopPropagation(); setIndex(prev => prev - 1); }} style={{
-          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
-          width: 44, height: 44, color: '#fff', fontSize: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>‹</button>
-      )}
-      {images.length > 1 && index < images.length - 1 && (
-        <button onClick={(e) => { e.stopPropagation(); setIndex(prev => prev + 1); }} style={{
-          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
-          width: 44, height: 44, color: '#fff', fontSize: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>›</button>
-      )}
-    </div>
-  );
-}
-
-// ---------- SNS投稿カード ----------
-function SnsPostCard({ post }) {
-  const { tryComment } = usePremium();
+function SharePostCard({ post }) {
   const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [showRecipe, setShowRecipe] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likes);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [imgScrollIndex, setImgScrollIndex] = useState(0);
-  const imgScrollRef = useRef(null);
-
-  const hasRealImages = post.imageUrls && post.imageUrls.length > 0;
-
-  const isSupabasePost = post.id && !String(post.id).startsWith('p') && !String(post.id).startsWith('local-');
+  const [likeCount, setLikeCount] = useState(post.likes_count || 0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const typeStyle = POST_TYPE_STYLES[post.post_type] || POST_TYPE_STYLES.tip;
 
   const toggleLike = () => {
     const newLiked = !liked;
     setLiked(newLiked);
-    const newCount = newLiked ? likeCount + 1 : likeCount - 1;
-    setLikeCount(newCount);
-    if (isSupabasePost) {
-      supabase.from('posts').update({ likes_count: newCount }).eq('id', post.id).then(({ error }) => {
-        if (error) console.error('like update error:', error);
-      });
-    }
-  };
-
-  const handleImgScroll = () => {
-    if (!imgScrollRef.current) return;
-    const el = imgScrollRef.current;
-    const idx = Math.round(el.scrollLeft / el.offsetWidth);
-    setImgScrollIndex(idx);
+    setLikeCount(prev => newLiked ? prev + 1 : prev - 1);
   };
 
   return (
     <div style={{
-      background: '#fff', marginBottom: 12, borderRadius: 18,
-      border: `1px solid ${COLORS.border}`, overflow: 'hidden',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      background: '#fff', borderRadius: 16, overflow: 'hidden',
+      boxShadow: '0 1px 8px rgba(0,0,0,0.06)', marginBottom: 16,
     }}>
-      {/* ヘッダー */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: SPACE.sm + 2, padding: `${SPACE.md}px ${SPACE.lg}px`,
-      }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: '50%', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', fontSize: 20,
-          background: COLORS.tagBg, border: `2px solid ${COLORS.border}`,
-        }}>{post.avatar}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: FONT.base, color: COLORS.text }}>{post.userName}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
-            <span style={{
-              background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
-              color: '#fff', padding: '1px 7px', borderRadius: 6, fontSize: FONT.xs, fontWeight: 700,
-            }}>{post.stage}</span>
-            <span style={{ fontSize: FONT.xs, color: COLORS.textLight }}>{post.timeAgo}</span>
-          </div>
-        </div>
-        <button style={{
-          background: 'none', border: 'none', fontSize: 18, cursor: 'pointer',
-          color: COLORS.textLight, padding: SPACE.sm, minWidth: 44, minHeight: 44,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>···</button>
-      </div>
-
-      {/* 写真エリア */}
-      {hasRealImages ? (
-        <div style={{ position: 'relative' }}>
-          <div
-            ref={imgScrollRef}
-            onScroll={handleImgScroll}
+      {post.image_url && (
+        <div style={{ width: '100%', height: 200, background: '#f0f0f0', position: 'relative' }}>
+          <img
+            src={post.image_url}
+            alt={post.title}
+            onLoad={() => setImageLoaded(true)}
+            onError={(e) => { e.target.style.display = 'none'; }}
             style={{
-              display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
-              WebkitOverflowScrolling: 'touch',
+              width: '100%', height: '100%', objectFit: 'cover',
+              opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.3s',
             }}
-          >
-            {post.imageUrls.map((url, i) => (
-              <img
-                key={i}
-                src={url}
-                alt=""
-                onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-                style={{
-                  width: '100%', height: 280, objectFit: 'cover', flexShrink: 0,
-                  scrollSnapAlign: 'start', cursor: 'pointer',
-                }}
-              />
+          />
+        </div>
+      )}
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 'bold', padding: '3px 8px', borderRadius: 8,
+            background: typeStyle.bg, color: typeStyle.color,
+          }}>
+            {typeStyle.emoji} {typeStyle.label}
+          </span>
+          {post.baby_stage && (
+            <span style={{
+              fontSize: 11, padding: '3px 8px', borderRadius: 8,
+              background: '#FFF3E0', color: '#E65100', fontWeight: 'bold',
+            }}>
+              {post.baby_stage}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, lineHeight: 1.4 }}>
+          {post.title}
+        </div>
+        <div style={{ fontSize: 14, color: '#555', lineHeight: 1.6, marginBottom: 12 }}>
+          {post.content}
+        </div>
+        {post.tags && post.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+            {post.tags.map((tag, i) => (
+              <span key={i} style={{
+                fontSize: 11, color: '#FF6B35', background: '#FFF3E0',
+                padding: '2px 8px', borderRadius: 10,
+              }}>
+                #{tag}
+              </span>
             ))}
           </div>
-          {post.imageUrls.length > 1 && (
-            <div style={{
-              position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
-              display: 'flex', gap: 5,
-            }}>
-              {post.imageUrls.map((_, i) => (
-                <div key={i} style={{
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: i === imgScrollIndex ? '#fff' : 'rgba(255,255,255,0.5)',
-                  transition: 'background 0.2s',
-                }} />
-              ))}
-            </div>
-          )}
-          {post.hasRecipe && (
-            <div style={{
-              position: 'absolute', top: SPACE.md, right: SPACE.md,
-              background: 'rgba(255,140,66,0.9)', backdropFilter: 'blur(4px)',
-              borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.sm + 2}px`,
-              color: '#fff', fontSize: FONT.sm, fontWeight: 700,
-            }}>🍳 レシピ付き</div>
-          )}
-        </div>
-      ) : (
+        )}
         <div style={{
-          background: post.photoBg, height: 280, display: 'flex',
-          flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          position: 'relative',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          paddingTop: 12, borderTop: '1px solid #f0f0f0',
         }}>
-          <span style={{ fontSize: 90, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' }}>
-            {post.photoEmoji}
-          </span>
-          <div style={{
-            position: 'absolute', bottom: SPACE.md, left: SPACE.md,
-            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
-            borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.md}px`,
-            color: '#fff', fontSize: FONT.sm, fontWeight: 700,
-          }}>{post.photoLabel}</div>
-          {post.hasRecipe && (
-            <div style={{
-              position: 'absolute', top: SPACE.md, right: SPACE.md,
-              background: 'rgba(255,140,66,0.9)', backdropFilter: 'blur(4px)',
-              borderRadius: 10, padding: `${SPACE.xs}px ${SPACE.sm + 2}px`,
-              color: '#fff', fontSize: FONT.sm, fontWeight: 700,
-            }}>🍳 レシピ付き</div>
-          )}
-        </div>
-      )}
-
-      {/* ライトボックス */}
-      {lightboxOpen && hasRealImages && (
-        <ImageLightbox
-          images={post.imageUrls}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxOpen(false)}
-        />
-      )}
-
-      {/* アクションバー */}
-      <div style={{
-        display: 'flex', alignItems: 'center', padding: `${SPACE.sm + 2}px ${SPACE.lg}px`, gap: SPACE.xs,
-      }}>
-        <button className="tap-light" onClick={toggleLike} style={{
-          background: 'none', border: 'none', fontSize: 24, cursor: 'pointer',
-          padding: '6px 8px', minWidth: 44, minHeight: 44,
-          transition: 'transform 0.2s',
-          transform: liked ? 'scale(1.15)' : 'scale(1)',
-        }}>{liked ? '❤️' : '🤍'}</button>
-        <button className="tap-light" onClick={() => { if (tryComment()) setCommentOpen(!commentOpen); }} style={{
-          background: 'none', border: 'none', fontSize: 22, cursor: 'pointer',
-          padding: '6px 8px', minWidth: 44, minHeight: 44,
-        }}>💬</button>
-        <button className="tap-light" style={{
-          background: 'none', border: 'none', fontSize: 22, cursor: 'pointer',
-          padding: '6px 8px', minWidth: 44, minHeight: 44,
-        }}>↗️</button>
-        <div style={{ flex: 1 }} />
-        <button className="tap-light" onClick={() => setSaved(!saved)} style={{
-          background: 'none', border: 'none', fontSize: 22, cursor: 'pointer',
-          padding: '6px 8px', minWidth: 44, minHeight: 44,
-          transition: 'transform 0.2s', transform: saved ? 'scale(1.15)' : 'scale(1)',
-        }}>{saved ? '🔖' : '🏷️'}</button>
-      </div>
-
-      {/* いいね数 */}
-      <div style={{ padding: `0 ${SPACE.lg}px ${SPACE.xs}px`, fontSize: FONT.base, fontWeight: 700, color: COLORS.text }}>
-        {likeCount.toLocaleString()}件のいいね
-      </div>
-
-      {/* キャプション */}
-      <div style={{ padding: `${SPACE.xs}px ${SPACE.lg}px 6px` }}>
-        <span style={{ fontWeight: 700, fontSize: FONT.base, color: COLORS.text, marginRight: 6 }}>
-          {post.userName}
-        </span>
-        <span style={{ fontSize: FONT.base, color: COLORS.text, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-          {post.caption}
-        </span>
-      </div>
-
-      {/* ハッシュタグ */}
-      <div style={{ padding: `2px ${SPACE.lg}px ${SPACE.sm}px`, display: 'flex', flexWrap: 'wrap', gap: SPACE.xs }}>
-        {post.hashtags.map((tag) => (
-          <span key={tag} style={{ fontSize: FONT.sm, color: '#0984E3', fontWeight: 500 }}>{tag}</span>
-        ))}
-      </div>
-
-      {/* レシピ展開 */}
-      {post.hasRecipe && (
-        <div style={{ padding: `0 ${SPACE.lg}px ${SPACE.md}px` }}>
-          <button className="tap-scale" onClick={() => setShowRecipe(!showRecipe)} style={{
-            width: '100%', background: COLORS.tagBg, border: `1px solid ${COLORS.border}`,
-            borderRadius: 12, padding: `${SPACE.sm + 2}px ${SPACE.lg}px`, cursor: 'pointer',
-            fontFamily: 'inherit', fontSize: FONT.base, fontWeight: 700, color: COLORS.primaryDark,
-            textAlign: 'left', display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            <span>🍳</span>
-            {showRecipe ? 'レシピを閉じる' : 'レシピを見る'}
-            <span style={{
-              marginLeft: 'auto', transition: 'transform 0.2s',
-              transform: showRecipe ? 'rotate(90deg)' : 'none',
-            }}>›</span>
-          </button>
-          {showRecipe && (
-            <div style={{
-              background: COLORS.tagBg, borderRadius: '0 0 12px 12px',
-              padding: `${SPACE.md}px ${SPACE.lg}px`, marginTop: -1,
-              borderLeft: `1px solid ${COLORS.border}`,
-              borderRight: `1px solid ${COLORS.border}`,
-              borderBottom: `1px solid ${COLORS.border}`,
-              animation: 'fadeInUp 0.25s ease-out',
+          <div style={{ display: 'flex', gap: 16 }}>
+            <button className="tap-light" onClick={toggleLike} style={{
+              background: 'none', border: 'none', fontSize: 13, color: '#888',
+              cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', gap: 4,
             }}>
-              <div style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.primaryDark, marginBottom: 6 }}>
-                🧾 材料
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE.xs, marginBottom: SPACE.sm + 2 }}>
-                {post.recipe.ingredients.map((ing) => (
-                  <span key={ing} style={{
-                    background: '#fff', borderRadius: 6, padding: `3px ${SPACE.sm}px`,
-                    fontSize: FONT.sm, color: COLORS.text, border: `1px solid ${COLORS.border}`,
-                  }}>{ing}</span>
-                ))}
-              </div>
-              <div style={{ fontSize: FONT.sm, fontWeight: 700, color: COLORS.primaryDark, marginBottom: 6 }}>
-                📖 手順
-              </div>
-              {post.recipe.steps.map((step, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: SPACE.sm, alignItems: 'flex-start',
-                  marginBottom: i < post.recipe.steps.length - 1 ? 6 : 0,
-                }}>
-                  <span style={{
-                    background: COLORS.primaryDark, color: '#fff', borderRadius: '50%',
-                    width: 20, height: 20, fontSize: FONT.xs, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0,
-                  }}>{i + 1}</span>
-                  <span style={{ fontSize: FONT.sm, lineHeight: 1.5, color: COLORS.text }}>{step}</span>
-                </div>
-              ))}
-            </div>
+              {liked ? '❤️' : '♡'} {likeCount}
+            </button>
+            <span style={{ fontSize: 13, color: '#888' }}>
+              💬 {post.comments_count || 0}
+            </span>
+          </div>
+          {post.source_url && (
+            <a href={post.source_url} target="_blank" rel="noopener noreferrer" style={{
+              fontSize: 12, color: '#FF6B35', fontWeight: 'bold', textDecoration: 'none',
+            }}>
+              動画を見る ▶
+            </a>
           )}
         </div>
-      )}
-
-      {/* コメント数 */}
-      <div style={{ padding: `0 ${SPACE.lg}px ${SPACE.md}px` }}>
-        <span style={{ fontSize: FONT.sm, color: COLORS.textLight }}>
-          コメント{post.comments}件をすべて見る
-        </span>
+        <div style={{ fontSize: 11, color: '#bbb', marginTop: 8 }}>
+          📌 {post.source_name || 'もぐもぐ'}
+        </div>
       </div>
     </div>
   );
@@ -3453,26 +3127,23 @@ function NewPostForm({ onClose, onPost }) {
 }
 
 // ---------- もぐもぐシェアタブ ----------
-const POSTS_PER_PAGE = 20;
+const SHARE_PAGE_SIZE = 20;
 
-function formatSupabasePost(p) {
+function formatUserPost(p) {
   return {
     id: p.id,
-    userId: p.user_id,
-    userName: p.user_name || 'ユーザー',
-    avatar: p.avatar || '😊',
-    stage: p.stage || 'ゴックン期',
-    timeAgo: getTimeAgo(p.created_at),
-    imageUrls: p.image_urls || [],
-    photoEmoji: null,
-    photoBg: null,
-    photoLabel: '',
-    caption: p.caption || '',
-    hashtags: p.hashtags || [],
-    likes: p.likes_count || 0,
-    comments: p.comments_count || 0,
-    hasRecipe: false,
-    _createdAt: p.created_at,
+    post_type: 'photo',
+    title: (p.caption || '').split('\n')[0] || 'ユーザー投稿',
+    content: p.caption || '',
+    image_url: (p.image_urls && p.image_urls[0]) || null,
+    source_name: p.user_name || 'ユーザー',
+    source_url: null,
+    baby_stage: p.stage === 'ゴックン期' ? '初期' : p.stage === 'モグモグ期' ? '中期' : p.stage === 'カミカミ期' ? '後期' : p.stage === 'パクパク期' ? '完了期' : null,
+    tags: p.hashtags || [],
+    likes_count: p.likes_count || 0,
+    comments_count: p.comments_count || 0,
+    created_at: p.created_at,
+    _source: 'user',
   };
 }
 
@@ -3481,14 +3152,10 @@ function ShareTab() {
   const { user } = useAuth();
   const [filter, setFilter] = useState('all');
   const [showNewPost, setShowNewPost] = useState(false);
-  const [supabasePosts, setSupabasePosts] = useState([]);
+  const [sharePosts, setSharePosts] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [newPostsBanner, setNewPostsBanner] = useState(0);
-  const pendingPostsRef = useRef([]);
   const feedRef = useRef(null);
-  const sentinelRef = useRef(null);
 
   // --- プルダウンリフレッシュ ---
   const [pullY, setPullY] = useState(0);
@@ -3496,76 +3163,34 @@ function ShareTab() {
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
 
-  const fetchPosts = useCallback(async (offset = 0) => {
-    const { data } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + POSTS_PER_PAGE - 1);
-    const formatted = (data || []).map(formatSupabasePost);
-    if (offset === 0) {
-      setSupabasePosts(formatted);
-    } else {
-      setSupabasePosts((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const newOnes = formatted.filter((p) => !existingIds.has(p.id));
-        return [...prev, ...newOnes];
-      });
-    }
-    setHasMore((data || []).length >= POSTS_PER_PAGE);
+  const fetchAllPosts = useCallback(async () => {
+    setLoadingPosts(true);
+    const [shareRes, userRes] = await Promise.all([
+      supabase.from('share_posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
+      supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(SHARE_PAGE_SIZE),
+    ]);
+    setSharePosts((shareRes.data || []).map(p => ({ ...p, _source: 'share' })));
+    setUserPosts((userRes.data || []).map(formatUserPost));
     setLoadingPosts(false);
-    setLoadingMore(false);
     setRefreshing(false);
-    return formatted;
   }, []);
 
-  // 初回読み込み
-  useEffect(() => {
-    fetchPosts(0);
-  }, [fetchPosts]);
+  useEffect(() => { fetchAllPosts(); }, [fetchAllPosts]);
 
-  // --- Supabase Realtime ---
-  useEffect(() => {
-    const channel = supabase
-      .channel('posts-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-        const incoming = formatSupabasePost(payload.new);
-        // 自分の投稿はhandleNewPostで既に追加済みなのでスキップ
-        setSupabasePosts((prev) => {
-          if (prev.some((p) => p.id === incoming.id)) return prev;
-          // 他ユーザーの投稿 → バナー表示
-          pendingPostsRef.current = [incoming, ...pendingPostsRef.current];
-          setNewPostsBanner((c) => c + 1);
-          return prev;
-        });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
-        const updated = payload.new;
-        setSupabasePosts((prev) => prev.map((p) =>
-          p.id === updated.id ? { ...p, likes: updated.likes_count || 0, comments: updated.comments_count || 0 } : p
-        ));
-      })
-      .subscribe();
+  // 全投稿を統合して日付順ソート
+  const allPosts = useMemo(() => {
+    const combined = [...sharePosts, ...userPosts];
+    combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return combined;
+  }, [sharePosts, userPosts]);
 
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  // --- 無限スクロール ---
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadingPosts) {
-          setLoadingMore(true);
-          fetchPosts(supabasePosts.length);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loadingPosts, supabasePosts.length, fetchPosts]);
+  const filteredPosts = useMemo(() => {
+    return allPosts.filter((post) => {
+      if (filter === 'all') return true;
+      if (['recipe', 'tip', 'photo', 'question'].includes(filter)) return post.post_type === filter;
+      return post.baby_stage === filter;
+    });
+  }, [allPosts, filter]);
 
   // --- プルダウンリフレッシュハンドラ ---
   const handleTouchStart = useCallback((e) => {
@@ -3578,9 +3203,7 @@ function ShareTab() {
   const handleTouchMove = useCallback((e) => {
     if (!isPulling.current || refreshing) return;
     const diff = e.touches[0].clientY - touchStartY.current;
-    if (diff > 0) {
-      setPullY(Math.min(diff * 0.4, 80));
-    }
+    if (diff > 0) setPullY(Math.min(diff * 0.4, 80));
   }, [refreshing]);
 
   const handleTouchEnd = useCallback(() => {
@@ -3588,34 +3211,11 @@ function ShareTab() {
     if (pullY > 50 && !refreshing) {
       setRefreshing(true);
       setPullY(50);
-      setLoadingPosts(true);
-      pendingPostsRef.current = [];
-      setNewPostsBanner(0);
-      fetchPosts(0);
+      fetchAllPosts();
     } else {
       setPullY(0);
     }
-  }, [pullY, refreshing, fetchPosts]);
-
-  // 「新しい投稿があります」バナーをタップ
-  const loadNewPosts = () => {
-    setSupabasePosts((prev) => {
-      const existingIds = new Set(prev.map((p) => p.id));
-      const fresh = pendingPostsRef.current.filter((p) => !existingIds.has(p.id));
-      return [...fresh, ...prev];
-    });
-    pendingPostsRef.current = [];
-    setNewPostsBanner(0);
-    if (feedRef.current) feedRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const allPosts = [...supabasePosts, ...SNS_POSTS];
-
-  const filteredPosts = allPosts.filter((post) => {
-    if (filter === 'all') return true;
-    if (filter === 'recipe') return post.hasRecipe;
-    return post.stage === filter;
-  });
+  }, [pullY, refreshing, fetchAllPosts]);
 
   const handleNewPost = async (data) => {
     const postData = {
@@ -3634,21 +3234,9 @@ function ShareTab() {
       .insert(postData)
       .select()
       .single();
-    const newPost = {
-      id: saved?.id || `local-${Date.now()}`,
-      userId: user?.id || 'me',
-      userName: postData.user_name,
-      avatar: '😊',
-      stage: 'ゴックン期',
-      timeAgo: 'たった今',
-      imageUrls: data.imageUrls,
-      caption: data.text,
-      hashtags: data.tags,
-      likes: 0,
-      comments: 0,
-      hasRecipe: false,
-    };
-    setSupabasePosts((prev) => [newPost, ...prev]);
+    if (saved) {
+      setUserPosts((prev) => [formatUserPost(saved), ...prev]);
+    }
     setShowNewPost(false);
   };
 
@@ -3678,80 +3266,12 @@ function ShareTab() {
                 <span style={{ animation: 'loadingPulse 1s infinite' }}>🔄</span>
                 更新中...
               </>
-            ) : pullY > 50 ? (
-              '↑ 離して更新'
-            ) : (
-              '↓ 引っ張って更新'
-            )}
+            ) : pullY > 50 ? '↑ 離して更新' : '↓ 引っ張って更新'}
           </div>
         </div>
       )}
 
       <Header title="📷 もぐもぐシェア" subtitle="みんなの離乳食をシェアしよう" />
-
-      {/* 「新しい投稿があります」バナー */}
-      {newPostsBanner > 0 && (
-        <button className="tap-scale" onClick={loadNewPosts} style={{
-          position: 'sticky', top: 0, zIndex: 100, width: '100%',
-          background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
-          border: 'none', padding: '10px 16px', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          fontFamily: 'inherit', animation: 'fadeInUp 0.3s ease-out',
-        }}>
-          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
-            {newPostsBanner}件の新しい投稿があります
-          </span>
-          <span style={{
-            background: 'rgba(255,255,255,0.25)', borderRadius: 8,
-            padding: '2px 8px', fontSize: 11, color: '#fff', fontWeight: 700,
-          }}>タップで表示</span>
-        </button>
-      )}
-
-      {/* ストーリーズ */}
-      <div style={{
-        padding: `${SPACE.lg}px 0 ${SPACE.sm + 2}px`, borderBottom: `1px solid ${COLORS.border}`, background: '#fff',
-      }}>
-        <div style={{
-          display: 'flex', gap: SPACE.lg, overflowX: 'auto', padding: `0 ${SPACE.lg}px`,
-          WebkitOverflowScrolling: 'touch',
-        }}>
-          {STORY_USERS.map((su) => (
-            <div key={su.id} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: 4, flexShrink: 0, cursor: 'pointer',
-            }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: '50%',
-                background: su.hasStory
-                  ? `linear-gradient(135deg, ${COLORS.primary}, #E91E63, #FDCB6E)`
-                  : COLORS.border,
-                padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <div style={{
-                  width: '100%', height: '100%', borderRadius: '50%', background: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: su.isMe ? 20 : 24, position: 'relative',
-                }}>
-                  {su.avatar}
-                  {su.isMe && (
-                    <div style={{
-                      position: 'absolute', bottom: -2, right: -2, width: 18, height: 18,
-                      borderRadius: '50%', background: COLORS.primaryDark, color: '#fff',
-                      fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', border: '2px solid #fff',
-                    }}>+</div>
-                  )}
-                </div>
-              </div>
-              <span style={{
-                fontSize: FONT.xs, color: COLORS.text, fontWeight: 500,
-                maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>{su.isMe ? 'あなた' : su.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* フィルターバー */}
       <div style={{
@@ -3759,7 +3279,7 @@ function ShareTab() {
         background: '#fff', borderBottom: `1px solid ${COLORS.border}`,
         WebkitOverflowScrolling: 'touch',
       }}>
-        {SNS_FILTERS.map((f) => (
+        {SHARE_FILTERS.map((f) => (
           <button className="tap-scale" key={f.id} onClick={() => setFilter(f.id)} style={{
             background: filter === f.id
               ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`
@@ -3774,7 +3294,7 @@ function ShareTab() {
 
       {/* フィード */}
       <div style={{ padding: `${SPACE.md}px ${SPACE.lg}px 0` }}>
-        {loadingPosts && supabasePosts.length === 0 && (
+        {loadingPosts && allPosts.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <div style={{ fontSize: 32, marginBottom: 8, animation: 'loadingPulse 1s infinite' }}>🍽️</div>
             <div style={{ fontSize: 13, color: COLORS.textLight }}>投稿を読み込み中...</div>
@@ -3783,7 +3303,7 @@ function ShareTab() {
         {filteredPosts.length > 0 ? (
           filteredPosts.map((post, i) => (
             <React.Fragment key={post.id}>
-              <SnsPostCard post={post} />
+              <SharePostCard post={post} />
               {(i + 1) % 4 === 0 && <LargeAdCard ad={getAd(7 + Math.floor(i / 4))} />}
             </React.Fragment>
           ))
@@ -3802,17 +3322,7 @@ function ShareTab() {
           </div>
         ) : null}
 
-        {/* 無限スクロール用センチネル */}
-        <div ref={sentinelRef} style={{ height: 1 }} />
-        {loadingMore && (
-          <div style={{ textAlign: 'center', padding: '20px 0 32px' }}>
-            <div style={{ fontSize: 13, color: COLORS.textLight, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <span style={{ animation: 'loadingPulse 1s infinite' }}>🍼</span>
-              もっと読み込み中...
-            </div>
-          </div>
-        )}
-        {!hasMore && supabasePosts.length > 0 && (
+        {allPosts.length > 0 && (
           <div style={{ textAlign: 'center', padding: '16px 0 32px', fontSize: 12, color: COLORS.textLight }}>
             すべての投稿を表示しました
           </div>
