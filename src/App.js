@@ -4661,10 +4661,14 @@ function AiConsultationTab() {
 
 function LineConnectionCard() {
   const { user } = useAuth();
-  const lineUserId = user?.user_metadata?.line_user_id;
-  const lineName = user?.user_metadata?.display_name;
-  const lineAvatar = user?.user_metadata?.avatar_url;
-  const isLineUser = user?.user_metadata?.provider === 'line';
+
+  // 未ログイン時は非表示
+  if (!user) return null;
+
+  const lineUserId = user.user_metadata?.line_user_id;
+  const lineName = user.user_metadata?.display_name;
+  const lineAvatar = user.user_metadata?.avatar_url;
+  const isLineUser = user.user_metadata?.provider === 'line';
 
   return (
     <div style={{
@@ -5220,12 +5224,17 @@ function SettingsTab() {
 
         {/* ログアウトボタン */}
         {user && (
-          <button className="tap-scale" onClick={signOut} style={{
-            width: '100%', padding: SPACE.lg, borderRadius: 16,
-            border: `2px solid ${COLORS.danger}`, background: '#fff',
-            color: COLORS.danger, fontSize: FONT.lg, fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'inherit', marginTop: SPACE.lg,
-          }}>
+          <button
+            className="tap-scale"
+            onClick={() => { signOut(); }}
+            style={{
+              width: '100%', padding: SPACE.lg, borderRadius: 16,
+              border: `2px solid ${COLORS.danger}`, background: '#fff',
+              color: COLORS.danger, fontSize: FONT.lg, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit', marginTop: SPACE.lg,
+              WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+              position: 'relative', zIndex: 10,
+            }}>
             ログアウト
           </button>
         )}

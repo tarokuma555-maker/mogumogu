@@ -6,9 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const APP_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : 'https://mogumogu-omega.vercel.app';
+// 本番ドメインを固定（VERCEL_URL はデプロイ固有URLなので使わない）
+const APP_URL = process.env.APP_URL || 'https://mogumogu-omega.vercel.app';
 
 // ===== Cookie パーサー =====
 function parseCookies(cookieStr) {
