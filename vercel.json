@@ -2,5 +2,15 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/collect-videos",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/collect-share-posts?refresh=true",
+      "schedule": "0 22 * * 0"
+    }
   ]
 }

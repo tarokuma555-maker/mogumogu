@@ -2808,6 +2808,8 @@ function SharePostCard({ post }) {
   const [likeCount, setLikeCount] = useState(post.likes_count || 0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const typeStyle = POST_TYPE_STYLES[post.post_type] || POST_TYPE_STYLES.tip;
+  const isRakuten = post.source_name === '楽天レシピ';
+  const isYouTube = post.source_name === 'YouTube';
 
   const toggleLike = () => {
     const newLiked = !liked;
@@ -2835,7 +2837,7 @@ function SharePostCard({ post }) {
         </div>
       )}
       <div style={{ padding: 16 }}>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
           <span style={{
             fontSize: 11, fontWeight: 'bold', padding: '3px 8px', borderRadius: 8,
             background: typeStyle.bg, color: typeStyle.color,
@@ -2848,6 +2850,15 @@ function SharePostCard({ post }) {
               background: '#FFF3E0', color: '#E65100', fontWeight: 'bold',
             }}>
               {post.baby_stage}
+            </span>
+          )}
+          {(isRakuten || isYouTube) && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11,
+              color: isRakuten ? '#BF0000' : '#FF0000',
+              background: '#FFF0F0', padding: '3px 8px', borderRadius: 8, fontWeight: 'bold',
+            }}>
+              {isRakuten ? '📖' : '▶'} {post.source_name}
             </span>
           )}
         </div>
@@ -2869,6 +2880,20 @@ function SharePostCard({ post }) {
             ))}
           </div>
         )}
+
+        {post.source_url && (
+          <a href={post.source_url} target="_blank" rel="noopener noreferrer" style={{
+            display: 'block', marginBottom: 12, textDecoration: 'none',
+            background: isRakuten ? '#BF0000' : isYouTube ? '#FF0000' : '#FF6B35',
+            color: '#fff', borderRadius: 20, padding: '10px 0',
+            textAlign: 'center', fontSize: 14, fontWeight: 'bold',
+          }}>
+            {isRakuten ? '📖 楽天レシピで詳しく見る' :
+             isYouTube ? '▶ YouTubeで動画を見る' :
+             '詳しく見る →'}
+          </a>
+        )}
+
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           paddingTop: 12, borderTop: '1px solid #f0f0f0',
@@ -2885,16 +2910,9 @@ function SharePostCard({ post }) {
               💬 {post.comments_count || 0}
             </span>
           </div>
-          {post.source_url && (
-            <a href={post.source_url} target="_blank" rel="noopener noreferrer" style={{
-              fontSize: 12, color: '#FF6B35', fontWeight: 'bold', textDecoration: 'none',
-            }}>
-              動画を見る ▶
-            </a>
-          )}
-        </div>
-        <div style={{ fontSize: 11, color: '#bbb', marginTop: 8 }}>
-          📌 {post.source_name || 'もぐもぐ'}
+          <div style={{ fontSize: 11, color: '#bbb' }}>
+            📌 {post.source_name || 'もぐもぐ'}
+          </div>
         </div>
       </div>
     </div>
