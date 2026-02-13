@@ -47,12 +47,27 @@ function AuthProvider({ children }) {
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           await fetchUserProfile(session.user.id);
+          // LINEログイン後のURLクリーンアップ
+          const params = new URLSearchParams(window.location.search);
+          if (params.has('login') || params.has('provider')) {
+            window.history.replaceState({}, '', window.location.pathname);
+          }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setUserProfile(null);
         }
       }
     );
+
+    // 初回ロード時のURLクリーンアップ（LINEコールバック後）
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'error') {
+      console.error('LINE login error:', params.get('reason'));
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.has('login')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     return () => subscription.unsubscribe();
   }, [fetchUserProfile]);
 
@@ -87,12 +102,9 @@ function AuthProvider({ children }) {
     return { data, error };
   };
 
-  const signInWithLINE = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'line',
-      options: { redirectTo: window.location.origin },
-    });
-    return { data, error };
+  const signInWithLINE = () => {
+    // SupabaseはLINEを標準サポートしないため、独自OAuth APIにリダイレクト
+    window.location.href = '/api/line';
   };
 
   const resetPassword = async (email) => {
@@ -603,7 +615,10 @@ function LoginScreen() {
           fontFamily: 'inherit', color: '#fff', display: 'flex',
           alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, marginBottom: SPACE.xxl,
         }}>
-          <span style={{ fontSize: 18 }}>💬</span> LINEでログイン
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+            <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+          </svg>
+          LINEでログイン
         </button>
 
         <div style={{ textAlign: 'center', marginBottom: SPACE.lg }}>
@@ -742,7 +757,10 @@ function SignupScreen() {
           fontFamily: 'inherit', color: '#fff', display: 'flex',
           alignItems: 'center', justifyContent: 'center', gap: SPACE.sm,
         }}>
-          <span style={{ fontSize: 18 }}>💬</span> LINEで登録
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+            <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+          </svg>
+          LINEで登録
         </button>
       </div>
     </div>
@@ -4641,6 +4659,71 @@ function AiConsultationTab() {
   );
 }
 
+function LineConnectionCard() {
+  const { user } = useAuth();
+  const lineUserId = user?.user_metadata?.line_user_id;
+  const lineName = user?.user_metadata?.display_name;
+  const lineAvatar = user?.user_metadata?.avatar_url;
+  const isLineUser = user?.user_metadata?.provider === 'line';
+
+  return (
+    <div style={{
+      background: COLORS.card, borderRadius: 18, padding: SPACE.lg,
+      marginBottom: SPACE.xl, border: `1px solid ${COLORS.border}`,
+    }}>
+      <div style={{ fontSize: FONT.lg, fontWeight: 900, marginBottom: SPACE.md, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#06C755">
+          <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+        </svg>
+        LINE連携
+      </div>
+
+      {lineUserId || isLineUser ? (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            {lineAvatar ? (
+              <img src={lineAvatar} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+            ) : (
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%', background: '#06C755',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 900,
+              }}>{(lineName || 'L')[0]}</div>
+            )}
+            <div>
+              <div style={{ fontSize: FONT.base, fontWeight: 700, color: COLORS.text }}>
+                {lineName || 'LINEユーザー'}
+              </div>
+              <div style={{ fontSize: FONT.sm, color: '#06C755', fontWeight: 700 }}>
+                ✓ 連携済み
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: FONT.xs, color: COLORS.textLight, lineHeight: 1.5 }}>
+            LINE公式アカウントからレシピや育児情報が届きます
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ fontSize: FONT.sm, color: '#666', marginBottom: 12, lineHeight: 1.6 }}>
+            LINEと連携すると、新しいレシピや離乳食の情報がLINEに届きます
+          </div>
+          <a href="/api/line" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '12px 0', background: '#06C755', color: '#fff',
+            borderRadius: 12, fontSize: FONT.base, fontWeight: 700, textDecoration: 'none',
+            boxSizing: 'border-box',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+              <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+            </svg>
+            LINEと連携する
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SavedItemsSection() {
   const { favorites, toggleFavorite } = useFavorites();
   const [filter, setFilter] = useState('all');
@@ -5104,6 +5187,9 @@ function SettingsTab() {
             <SubscriptionInfo />
           )}
         </div>
+
+        {/* LINE連携 */}
+        <LineConnectionCard />
 
         {/* 保存済みアイテム */}
         <SavedItemsSection />
