@@ -1625,37 +1625,24 @@ function AdCard({ ad, cardHeight }) {
   );
 }
 
-// ---------- Supabase 動画取得（ランダム） ----------
+// ---------- サーバーサイド動画取得（RLS バイパス） ----------
 const SHORTS_PAGE_SIZE = 20;
 
 async function fetchRandomVideos(excludeIds = []) {
   try {
-    // RPC でランダム取得を試行
-    const { data, error } = await supabase
-      .rpc('get_random_videos', { count_limit: SHORTS_PAGE_SIZE + excludeIds.length });
-
-    if (!error && data && data.length > 0) {
-      // 既に表示済みの動画を除外
-      const filtered = excludeIds.length > 0
-        ? data.filter(v => !excludeIds.includes(v.id))
-        : data;
-      return filtered.slice(0, SHORTS_PAGE_SIZE);
+    const params = new URLSearchParams({ limit: SHORTS_PAGE_SIZE.toString() });
+    if (excludeIds.length > 0) {
+      params.set('exclude', JSON.stringify(excludeIds));
     }
 
-    if (error) console.error('RPC get_random_videos error, falling back:', error);
-
-    // フォールバック: 通常クエリ（新しい順）
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('videos')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(SHORTS_PAGE_SIZE);
-
-    if (fallbackError) {
-      console.error('fetchVideos fallback error:', fallbackError);
+    const res = await fetch(`/api/random-videos?${params}`);
+    if (!res.ok) {
+      console.error('random-videos API error:', res.status);
       return [];
     }
-    return fallbackData || [];
+
+    const json = await res.json();
+    return json.videos || [];
   } catch (e) {
     console.error('fetchRandomVideos exception:', e);
     return [];
@@ -1669,7 +1656,7 @@ const STAGE_DISPLAY = {
   '完了期': '完了期 12-18ヶ月', 'パクパク期': '完了期 12-18ヶ月',
 };
 
-function VideoCard({ item, cardHeight, isVisible, isActive }) {
+function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
   // 3 states: 'thumbnail' | 'playing' | 'error'
   const [playState, setPlayState] = useState('thumbnail');
   const [muted, setMuted] = useState(true);
@@ -1699,6 +1686,35 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
       }), '*');
     } catch { /* cross-origin */ }
   }, [muted, playState]);
+
+  // YouTube IFrame API エラー検知（iframe 内部のエラーを捕捉）
+  useEffect(() => {
+    if (playState !== 'playing' || !videoId) return;
+
+    const handleMessage = (event) => {
+      if (!event.origin || !event.origin.includes('youtube.com')) return;
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        // YouTube error codes: 100=動画なし, 101/150=埋め込み不可, 2=不正パラメータ, 5=HTML5エラー
+        if (data.event === 'onError') {
+          console.warn('YouTube error for', videoId, ':', data.info);
+          setPlayState('error');
+        }
+      } catch {
+        // YouTube 以外のメッセージは無視
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [playState, videoId]);
+
+  // エラー時に自動で次の動画にスキップ（2秒後）
+  useEffect(() => {
+    if (playState !== 'error' || !onSkip) return;
+    const timer = setTimeout(() => onSkip(), 2000);
+    return () => clearTimeout(timer);
+  }, [playState, onSkip]);
 
   const formatCount = (n) => {
     if (n >= 10000) return (n / 10000).toFixed(1) + '万';
@@ -1858,9 +1874,9 @@ function VideoCard({ item, cardHeight, isVisible, isActive }) {
           alignItems: 'center', justifyContent: 'center',
           background: 'rgba(0,0,0,0.6)',
         }}>
-          <span style={{ fontSize: 48, marginBottom: 12 }}>⚠️</span>
+          <span style={{ fontSize: 48, marginBottom: 12 }}>⏭️</span>
           <span style={{ color: '#fff', fontSize: FONT.base, fontWeight: 700 }}>
-            再生できません
+            次の動画へ...
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); setPlayState('thumbnail'); }}
@@ -2211,6 +2227,12 @@ function HomeTab() {
                 cardHeight={cardHeight}
                 isVisible={Math.abs(i - currentIndex) <= 2}
                 isActive={i === currentIndex}
+                onSkip={() => {
+                  const nextIdx = i + 1;
+                  if (nextIdx < displayItems.length && containerRef.current) {
+                    containerRef.current.scrollTo({ top: nextIdx * cardHeight, behavior: 'smooth' });
+                  }
+                }}
               />
             ) : (
               <AdCard ad={entry.data} cardHeight={cardHeight} />
