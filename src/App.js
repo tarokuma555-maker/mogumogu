@@ -176,7 +176,7 @@ function useAuth() {
 const PremiumContext = createContext();
 
 function PremiumProvider({ children }) {
-  const { userProfile, user } = useAuth();
+  const { user } = useAuth();
   const [isPremium, setIsPremium] = useState(() => {
     try { return localStorage.getItem('mogumogu_premium') === 'true'; } catch { return false; }
   });
@@ -214,7 +214,7 @@ function PremiumProvider({ children }) {
 
   useEffect(() => {
     checkPremiumStatus();
-  }, [checkPremiumStatus, userProfile, premiumVersion]);
+  }, [checkPremiumStatus, premiumVersion]);
   const [searchCount, setSearchCount] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('mogumogu_usage') || '{}');
@@ -246,8 +246,8 @@ function PremiumProvider({ children }) {
     const next = !isPremium;
     setIsPremium(next);
     localStorage.setItem('mogumogu_premium', next.toString());
-    if (userProfile) {
-      await supabase.from('users').update({ is_premium: next }).eq('id', userProfile.id);
+    if (user) {
+      await supabase.from('users').update({ is_premium: next }).eq('id', user.id);
     }
   };
 
@@ -4431,33 +4431,38 @@ function PremiumScreen({ onClose }) {
 // ---------- プレミアム登録成功画面 ----------
 function PremiumSuccessScreen({ onClose }) {
   const { subscription, refetch } = useSubscription();
-  const { isPremium, refreshPremium } = usePremium();
-  const [activating, setActivating] = useState(!isPremium);
+  const { checkPremiumStatus } = usePremium();
+  const [activating, setActivating] = useState(true);
 
-  // サブスクリプション情報をポーリングで取得
+  // Webhook 反映をポーリング（2秒間隔、最大30秒）
   useEffect(() => {
-    if (!activating) return;
+    let cancelled = false;
     let count = 0;
-    const poll = setInterval(async () => {
-      count++;
-      await refetch();
-      await refreshPremium();
-      if (count >= 15) clearInterval(poll);
-    }, 2000);
-    return () => clearInterval(poll);
-  }, [activating, refetch, refreshPremium]);
-
-  // isPremium が true になったらポーリング停止
-  useEffect(() => {
-    if (isPremium) setActivating(false);
-  }, [isPremium]);
+    const poll = async () => {
+      while (!cancelled && count < 15) {
+        count++;
+        await refetch();
+        const active = await checkPremiumStatus();
+        if (active) {
+          setActivating(false);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      // タイムアウトしても終了
+      setActivating(false);
+    };
+    poll();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const trialEndDate = subscription?.trial_end
     ? new Date(subscription.trial_end).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })
     : '7日後';
 
-  const handleClose = () => {
-    refreshPremium();
+  const handleClose = async () => {
+    await checkPremiumStatus();
     onClose();
   };
 
@@ -4988,8 +4993,8 @@ function SettingsTab() {
 const PROTECTED_TABS = ['share', 'recipe', 'settings'];
 
 function App() {
-  const { loading, authScreen, setAuthScreen, isAuthenticated, fetchUserProfile, user } = useAuth();
-  const { checkPremiumStatus, refreshPremium } = usePremium();
+  const { loading, authScreen, setAuthScreen, isAuthenticated, user } = useAuth();
+  const { refreshPremium } = usePremium();
   const [activeTab, setActiveTab] = useState('home');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedTab, setDisplayedTab] = useState('home');
@@ -5007,20 +5012,6 @@ function App() {
     if (isSuccess) {
       setPremiumScreen('success');
       window.history.replaceState({}, '', window.location.pathname);
-      // Webhook が反映されるまでポーリング（2秒間隔、最大30秒）
-      if (user) {
-        let attempts = 0;
-        const maxAttempts = 15;
-        const poll = setInterval(async () => {
-          attempts++;
-          const active = await checkPremiumStatus();
-          if (active || attempts >= maxAttempts) {
-            clearInterval(poll);
-            fetchUserProfile(user.id);
-          }
-        }, 2000);
-        return () => clearInterval(poll);
-      }
     } else if (isCancel) {
       setCheckoutStatus('cancel');
       window.history.replaceState({}, '', window.location.pathname);
@@ -5031,10 +5022,7 @@ function App() {
       setActiveTab('settings');
       setDisplayedTab('settings');
       window.history.replaceState({}, '', window.location.pathname);
-      if (user) {
-        fetchUserProfile(user.id);
-        refreshPremium();
-      }
+      if (user) refreshPremium();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -5125,7 +5113,7 @@ function App() {
         <PremiumScreen onClose={() => setPremiumScreen(null)} />
       )}
       {premiumScreen === 'success' && (
-        <PremiumSuccessScreen onClose={() => { refreshPremium(); setPremiumScreen(null); setActiveTab('home'); }} />
+        <PremiumSuccessScreen onClose={() => { setPremiumScreen(null); setActiveTab('home'); }} />
       )}
 
       {/* キャンセルバナー */}
