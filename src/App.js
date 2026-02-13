@@ -880,8 +880,8 @@ function OnboardingScreen() {
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif" }}>
-      <div style={{ padding: `${SPACE.xl}px` }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', background: COLORS.bg, minHeight: '100vh', fontFamily: "'Zen Maru Gothic', sans-serif", overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ padding: `${SPACE.xl}px`, paddingBottom: 40 }}>
         {/* プログレスバー */}
         <div style={{ display: 'flex', gap: SPACE.sm, marginBottom: SPACE.xxl, marginTop: SPACE.lg }}>
           {[1, 2].map(n => (
