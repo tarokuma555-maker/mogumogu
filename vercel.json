@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/blog/:slug", "destination": "/api/blog/:slug" },
+    { "source": "/blog", "destination": "/api/blog" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [
@@ -15,6 +18,10 @@
     {
       "path": "/api/videos?action=cleanup",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/blog-generate",
+      "schedule": "0 3 * * 1,4"
     }
   ]
 }

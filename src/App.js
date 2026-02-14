@@ -5212,6 +5212,34 @@ function SettingsTab() {
         {/* LINE連携 */}
         <LineConnectionCard />
 
+        {/* 離乳食ガイド */}
+        <a
+          href="/blog"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fff',
+            borderRadius: 18,
+            padding: `${SPACE.lg}px ${SPACE.xl}px`,
+            marginBottom: SPACE.lg,
+            textDecoration: 'none',
+            color: COLORS.text,
+            border: `1px solid ${COLORS.border}`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: SPACE.md }}>
+            <span style={{ fontSize: 28 }}>📚</span>
+            <div>
+              <div style={{ fontSize: FONT.base, fontWeight: 700 }}>離乳食ガイド</div>
+              <div style={{ fontSize: FONT.sm, color: COLORS.textLight, marginTop: 2 }}>
+                月齢別の進め方・食材・レシピ集
+              </div>
+            </div>
+          </div>
+          <span style={{ color: COLORS.textMuted, fontSize: 18 }}>→</span>
+        </a>
+
         {/* 保存済みアイテム */}
         <SavedItemsSection />
 
