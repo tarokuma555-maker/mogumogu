@@ -194,6 +194,52 @@ async function handleCreate(req, res) {
   res.status(200).json({ url: session.url });
 }
 
+// ===== action=portal: Stripe カスタマーポータル =====
+async function handlePortal(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  let customerId = null;
+  try {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .single();
+    customerId = sub?.stripe_customer_id;
+  } catch (e) {}
+
+  if (!customerId) {
+    try {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+      customerId = profile?.stripe_customer_id;
+    } catch (e) {}
+  }
+
+  if (!customerId) {
+    return res.status(400).json({ error: 'No Stripe customer found' });
+  }
+
+  const origin = req.headers.origin || 'https://mogumogu-omega.vercel.app';
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: `${origin}/?tab=settings`,
+  });
+
+  return res.status(200).json({ url: portalSession.url });
+}
+
 // ===== メインハンドラ =====
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -207,6 +253,7 @@ module.exports = async (req, res) => {
     switch (action) {
       case 'check': return await handleCheck(req, res);
       case 'verify': return await handleVerify(req, res);
+      case 'portal': return await handlePortal(req, res);
       default: return await handleCreate(req, res);
     }
   } catch (err) {

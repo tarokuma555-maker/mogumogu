@@ -533,7 +533,7 @@ async function startCheckout(userId, email, plan) {
 }
 
 async function openCustomerPortal(userToken) {
-  const res = await fetch('/api/create-portal-session', {
+  const res = await fetch('/api/create-checkout?action=portal', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
