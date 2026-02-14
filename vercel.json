@@ -7,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/collect-videos",
+      "path": "/api/videos?action=collect",
       "schedule": "0 21 * * *"
     },
     {
@@ -21,6 +21,26 @@
     {
       "path": "/api/blog?action=generate",
       "schedule": "0 3 * * 1,4"
+    },
+    {
+      "path": "/api/auto-post-x?type=tip",
+      "schedule": "50 23 * * *"
+    },
+    {
+      "path": "/api/auto-post-x?type=stage",
+      "schedule": "50 2 * * *"
+    },
+    {
+      "path": "/api/auto-post-x?type=relatable",
+      "schedule": "50 11 * * *"
+    },
+    {
+      "path": "/api/line-broadcast?type=tip",
+      "schedule": "0 1 * * 1"
+    },
+    {
+      "path": "/api/line-broadcast?type=recipe",
+      "schedule": "0 1 * * 4"
     }
   ]
 }
