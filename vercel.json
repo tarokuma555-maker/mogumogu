@@ -1,10 +1,9 @@
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/blog/:slug", "destination": "/api/blog?slug=:slug" },
     { "source": "/blog", "destination": "/api/blog" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|sitemap).*)", "destination": "/index.html" }
   ],
   "crons": [
     {
