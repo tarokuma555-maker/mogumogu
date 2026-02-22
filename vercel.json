@@ -23,16 +23,20 @@
       "schedule": "0 3 * * 1,4"
     },
     {
-      "path": "/api/auto-post-x?type=tip",
+      "path": "/api/auto-post?platform=x&type=tip",
       "schedule": "50 23 * * *"
     },
     {
-      "path": "/api/auto-post-x?type=stage",
+      "path": "/api/auto-post?platform=x&type=stage",
       "schedule": "50 2 * * *"
     },
     {
-      "path": "/api/auto-post-x?type=relatable",
+      "path": "/api/auto-post?platform=x&type=relatable",
       "schedule": "50 11 * * *"
+    },
+    {
+      "path": "/api/auto-post?platform=instagram",
+      "schedule": "0 3 * * 1-5"
     },
     {
       "path": "/api/line-broadcast?type=tip",
