@@ -17,16 +17,29 @@ async function handleRandom(req, res) {
     try { excludeIds = JSON.parse(req.query.exclude); } catch {}
   }
 
+  // 総数を取得してランダムオフセットで毎回違う範囲から取得
+  const { count } = await supabase
+    .from('videos')
+    .select('id', { count: 'exact', head: true })
+    .not('youtube_id', 'is', null)
+    .neq('youtube_id', '');
+
+  const total = count || 0;
+  const poolSize = Math.min(total, limit * 4);
+  const maxOffset = Math.max(0, total - poolSize);
+  const offset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+
   const { data, error } = await supabase
     .from('videos')
     .select('*')
     .not('youtube_id', 'is', null)
     .neq('youtube_id', '')
-    .limit(limit + excludeIds.length);
+    .range(offset, offset + poolSize - 1);
 
   if (error) return res.status(500).json({ error: 'Database query failed' });
 
   let videos = (data || []).filter(v => !excludeIds.includes(v.id));
+  // Fisher-Yates シャッフル
   for (let i = videos.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [videos[i], videos[j]] = [videos[j], videos[i]];
@@ -37,12 +50,32 @@ async function handleRandom(req, res) {
 
 // ===== action=fresh: YouTube APIから直接取得 =====
 const KEYWORDS_BY_STAGE = {
-  '初期': ['離乳食 初期 レシピ #shorts', '離乳食 5ヶ月 6ヶ月 #shorts', '10倍がゆ 作り方 #shorts'],
-  '中期': ['離乳食 中期 レシピ #shorts', '離乳食 7ヶ月 8ヶ月 #shorts', '離乳食 中期 簡単 #shorts'],
-  '後期': ['離乳食 後期 レシピ #shorts', '手づかみ食べ 離乳食 #shorts', '離乳食 9ヶ月 #shorts'],
-  '完了期': ['離乳食 完了期 レシピ #shorts', '1歳 ごはん レシピ #shorts', '幼児食 簡単 #shorts'],
+  '初期': [
+    '離乳食 初期 レシピ #shorts', '離乳食 5ヶ月 6ヶ月 #shorts', '10倍がゆ 作り方 #shorts',
+    '離乳食 ペースト 作り方 #shorts', '離乳食 初めて 進め方 #shorts', 'ゴックン期 離乳食 #shorts',
+    '離乳食 にんじん ペースト #shorts', '離乳食 おかゆ 初期 #shorts',
+  ],
+  '中期': [
+    '離乳食 中期 レシピ #shorts', '離乳食 7ヶ月 8ヶ月 #shorts', '離乳食 中期 簡単 #shorts',
+    'モグモグ期 レシピ #shorts', '離乳食 7倍がゆ #shorts', '離乳食 中期 野菜 #shorts',
+    '離乳食 中期 タンパク質 #shorts', '離乳食 豆腐 中期 #shorts',
+  ],
+  '後期': [
+    '離乳食 後期 レシピ #shorts', '手づかみ食べ 離乳食 #shorts', '離乳食 9ヶ月 #shorts',
+    'カミカミ期 レシピ #shorts', '離乳食 手づかみ おやき #shorts', '離乳食 後期 献立 #shorts',
+    '離乳食 3回食 レシピ #shorts', '離乳食 後期 おかず #shorts',
+  ],
+  '完了期': [
+    '離乳食 完了期 レシピ #shorts', '1歳 ごはん レシピ #shorts', '幼児食 簡単 #shorts',
+    'パクパク期 レシピ #shorts', '1歳 取り分け レシピ #shorts', '幼児食 献立 #shorts',
+    '1歳 おやつ 手作り #shorts', '離乳食 完了期 おかず #shorts',
+  ],
 };
-const DEFAULT_KEYWORDS = ['離乳食 レシピ 簡単 #shorts', '離乳食 作り方 #shorts', '赤ちゃん ごはん #shorts'];
+const DEFAULT_KEYWORDS = [
+  '離乳食 レシピ 簡単 #shorts', '離乳食 作り方 #shorts', '赤ちゃん ごはん #shorts',
+  '離乳食 冷凍ストック #shorts', '離乳食 時短 #shorts', '離乳食 ストック 作り方 #shorts',
+  '離乳食 一週間 まとめ #shorts', '離乳食 おすすめ 食材 #shorts',
+];
 
 async function handleFresh(req, res) {
   const youtubeKey = process.env.YOUTUBE_API_KEY;

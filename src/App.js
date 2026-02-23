@@ -2317,7 +2317,8 @@ function VideoCard({ item, cardHeight, isVisible, isActive, onSkip }) {
 }
 
 // ---------- ホームタブ 動画キャッシュ（タブ切替時の再読み込み防止） ----------
-const videosCache = { data: null, page: 0, hasMore: true };
+const CACHE_TTL = 10 * 60 * 1000; // 10分でキャッシュ無効化
+const videosCache = { data: null, page: 0, hasMore: true, timestamp: 0 };
 
 // ---------- ホームタブ ----------
 function HomeTab() {
@@ -2339,9 +2340,10 @@ function HomeTab() {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // 初回ロード: キャッシュがあればスキップ
+  // 初回ロード: キャッシュが新鮮ならスキップ、古ければ再取得
   useEffect(() => {
-    if (videosCache.data) return; // キャッシュあり → フェッチ不要
+    const cacheValid = videosCache.data && (Date.now() - videosCache.timestamp < CACHE_TTL);
+    if (cacheValid) return;
     let cancelled = false;
     async function loadInitial() {
       setLoading(true);
@@ -2375,11 +2377,13 @@ function HomeTab() {
         setHasMore(allVideos.length >= SHORTS_PAGE_SIZE);
         videosCache.data = allVideos;
         videosCache.hasMore = allVideos.length >= SHORTS_PAGE_SIZE;
+        videosCache.timestamp = Date.now();
       } else {
         setVideos(FALLBACK_VIDEOS);
         setHasMore(false);
         videosCache.data = FALLBACK_VIDEOS;
         videosCache.hasMore = false;
+        videosCache.timestamp = Date.now();
       }
       setLoading(false);
     }
