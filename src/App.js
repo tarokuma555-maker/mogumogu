@@ -2773,6 +2773,7 @@ function SearchTab() {
   const [results, setResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [serverUsage, setServerUsage] = useState(null);
   const { isPremium, trySearch, searchCount } = usePremium();
   const { isAuthenticated } = useAuth();
@@ -2790,7 +2791,7 @@ function SearchTab() {
     );
   };
 
-  const doAISearch = async (q) => {
+  const doAISearch = async (q, excludeTitles = []) => {
     const babyMonth = parseInt(localStorage.getItem('mogumogu_month')) || 6;
     const allergens = JSON.parse(localStorage.getItem('mogumogu_allergens') || '[]');
     const allergenNames = allergens.map(id => ALLERGENS.find(a => a.id === id)?.name).filter(Boolean);
@@ -2809,7 +2810,8 @@ function SearchTab() {
         ingredients,
         baby_month: babyMonth,
         allergens: allergenNames,
-        count: 5,
+        count: 10,
+        exclude_titles: excludeTitles,
       }),
     });
 
@@ -2822,7 +2824,7 @@ function SearchTab() {
 
     const body = await res.json();
     if (body.usage) setServerUsage(body.usage);
-    return { recipes: body.recipes || [], fromAI: true };
+    return { recipes: (body.recipes || []).map((r, i) => ({ ...r, id: r.id || `ai_${Date.now()}_${i}` })), fromAI: true };
   };
 
   const handleSearch = (q) => {
@@ -2853,6 +2855,20 @@ function SearchTab() {
       setResults(recipes);
       setIsSearching(false);
     }, 600);
+  };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const excludeTitles = results.map(r => r.title);
+      const { recipes } = await doAISearch(query, excludeTitles);
+      if (recipes.length > 0) {
+        setResults(prev => [...prev, ...recipes]);
+      }
+    } catch (e) {
+      console.error('Load more failed:', e);
+    }
+    setLoadingMore(false);
   };
 
   const popularTags = [
@@ -3021,6 +3037,22 @@ function SearchTab() {
               {i === 6 && <LargeAdCard ad={getAd(5)} />}
             </React.Fragment>
           ))}
+          {results.length > 0 && (
+            <button
+              className="tap-scale"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 16,
+                background: loadingMore ? COLORS.border : `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+                color: '#fff', border: 'none', fontSize: FONT.base,
+                fontWeight: 700, cursor: loadingMore ? 'default' : 'pointer',
+                marginTop: SPACE.md, fontFamily: 'inherit',
+              }}
+            >
+              {loadingMore ? '🔄 レシピを探しています...' : '🍳 もっとレシピを見る'}
+            </button>
+          )}
           {results.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <div style={{ fontSize: 60, marginBottom: SPACE.md }}>🔍</div>
